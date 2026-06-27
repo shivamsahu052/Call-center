@@ -1,0 +1,7 @@
+streamlit
+soundcard
+soundfile
+numpy
+pywin32
+faster-whisper
+deep-translator
