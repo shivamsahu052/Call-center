@@ -3,19 +3,46 @@
   display: grid;
   place-items: center;
   padding: 32px 16px;
-  background:
-    linear-gradient(135deg, rgba(19, 111, 99, 0.1), transparent 32%),
-    linear-gradient(315deg, rgba(31, 111, 235, 0.08), transparent 34%),
-    var(--bg);
+  background: radial-gradient(circle at top left, rgba(104, 96, 96, 0.76), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.12), transparent 26%),
+    linear-gradient(180deg, #0d0d0d 0%, #080808 38%, #1c1c1c 100%);
 }
 
 .auth-card {
-  width: min(100%, 430px);
-  padding: 36px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  position: relative;
+  width: min(100%, 540px);
+  padding: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
+  backdrop-filter: blur(24px);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  transition: transform 260ms ease, box-shadow 260ms ease, border-color 260ms ease;
+}
+
+.auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 26%),
+    radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.1), transparent 24%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.auth-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 46px 120px rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.auth-card--login {
+  border-radius: 32px 10px 32px 10px;
+}
+
+.auth-card--register {
+  border-radius: 10px 32px 10px 32px;
 }
 
 .compact-card {
@@ -24,7 +51,7 @@
 
 .eyebrow {
   margin: 0 0 10px;
-  color: var(--primary);
+  color: #7fe7cf;
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -33,7 +60,7 @@
 
 h1 {
   margin: 0 0 26px;
-  color: var(--text);
+  color: #ffffff;
   font-size: 2rem;
   line-height: 1.15;
   letter-spacing: 0;
@@ -46,7 +73,7 @@ h1 {
 
 .auth-form label,
 .role-fieldset legend {
-  color: var(--text);
+  color: #f7fbff;
   font-size: 0.95rem;
   font-weight: 700;
 }
@@ -56,20 +83,83 @@ h1 {
 .auth-form input[type='text'] {
   width: 100%;
   min-height: 46px;
-  padding: 10px 12px;
-  border: 1px solid #c8d4df;
-  border-radius: 6px;
-  background: #fbfdff;
-  color: var(--text);
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  background: #ffffff;
+  color: #111111;
   outline: none;
   transition:
-    border-color 150ms ease,
-    box-shadow 150ms ease;
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--primary-dark);
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: #0b0f12;
+
+}
+
+.password-toggle:hover {
+  /* Keep icon dark on hover so it remains visible on white inputs */
+  color: #0b0f12;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.password-toggle:active {
+  color: #0676cc;
+  transform: translateY(-50%) scale(0.98);
+}
+
+.password-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 18, 23, 0.06);
+  border-radius: 8px;
+
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+  color: #110f10;
+
+}
+
+/* Ensure the icon contrasts on white inputs and doesn't overlap input text */
+.password-toggle {
+  color: #101217;
+}
+
+.password-field input {
+  padding-right: 60px;
+}
+
+.auth-form input:hover {
+  transform: translateY(-1px);
 }
 
 .auth-form input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px var(--focus);
+  box-shadow: 0 0 0 5px rgba(19, 111, 99, 0.14);
 }
 
 .primary-button {
@@ -77,17 +167,20 @@ h1 {
   min-height: 46px;
   margin-top: 8px;
   border: 0;
-  border-radius: 6px;
-  background: var(--primary);
-  color: #ffffff;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #000000;
   font-weight: 800;
+  letter-spacing: 0.02em;
   transition:
-    background 150ms ease,
-    transform 150ms ease;
+    background 200ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .primary-button:hover {
-  background: var(--primary-dark);
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  box-shadow: 0 16px 30px rgba(19, 111, 99, 0.3);
 }
 
 .primary-button:active {
@@ -100,7 +193,7 @@ h1 {
   justify-items: center;
   margin-top: 22px;
   padding-top: 20px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(19, 111, 99, 0.15);
   color: var(--muted);
   font-size: 0.95rem;
 }
@@ -131,7 +224,7 @@ h1 {
   align-items: center;
   gap: 10px;
   width: fit-content;
-  color: var(--muted);
+  color: #f2f7ff;
   font-weight: 600;
 }
 
@@ -155,41 +248,49 @@ h1 {
 .form-message {
   margin: 2px 0 0;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 0.9rem;
   font-weight: 700;
+  border: 1px solid transparent;
 }
 
 .form-message.error {
-  background: #fff3f0;
-  color: var(--danger);
+  background: rgba(255, 90, 95, 0.16);
+  border-color: rgba(255, 90, 95, 0.35);
+  color: #ffe0e2;
 }
 
 .form-message.success {
-  background: #ecfdf3;
-  color: var(--success);
+  background: rgba(209, 247, 223, 0.18);
+  border-color: rgba(209, 247, 223, 0.35);
+  color: #ecfff0;
 }
 
 .account-summary {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 18px;
 }
 
 .account-summary span,
 .account-summary strong {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 999px;
-  background: #eef6f5;
-  color: var(--primary-dark);
-  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .muted {
   margin: 0 0 18px;
-  color: var(--muted);
+  color: #f3f7ff;
+  line-height: 1.6;
 }
 
 @media (max-width: 520px) {
@@ -205,4 +306,110 @@ h1 {
   h1 {
     font-size: 1.65rem;
   }
+}
+
+.otp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 5, 0.7);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.otp-modal {
+  width: min(100%, 420px);
+  padding: 28px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #111;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.otp-modal h2 {
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+
+.otp-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.otp-modal-subtitle {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.otp-close-button {
+  border: none;
+  background: rgba(17, 24, 39, 0.08);
+  color: #111827;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.otp-close-button:hover {
+  background: rgba(17, 24, 39, 0.14);
+}
+
+.otp-form {
+  display: grid;
+  gap: 14px;
+}
+
+.otp-code-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(19, 111, 99, 0.12), rgba(19, 111, 99, 0.04));
+  border: 1px solid rgba(19, 111, 99, 0.2);
+}
+
+.otp-code-label {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0f766e;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.otp-code-value {
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  color: #0b0f12;
+}
+
+.otp-code-help {
+  margin: 6px 0 0;
+  color: #374151;
+  font-size: 0.92rem;
+}
+
+.otp-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.otp-modal input {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: #ffffff;
+  color: #111;
 }

@@ -11,26 +11,69 @@ const initialFormData = {
 }
 
 function Register({ onShowLogin }) {
-  const { managerEnrollmentKey, register } = useAuth()
+  const { managerEnrollmentKey, registerInitiate, verifyRegistration } = useAuth()
   const [formData, setFormData] = useState(initialFormData)
   const [message, setMessage] = useState('')
-  const [employeeId, setEmployeeId] = useState('')
+  const [messageType, setMessageType] = useState('error')
+  const [otp, setOtp] = useState('')
+  const [emailForOtp, setEmailForOtp] = useState('')
+  const [showOtpModal, setShowOtpModal] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showManagerKey, setShowManagerKey] = useState(false)
 
   function updateField(event) {
     const { name, value } = event.target
     setFormData((current) => ({ ...current, [name]: value }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    const result = register(formData)
+    setMessage('')
+    setMessageType('error')
 
+    if (formData.password !== formData.confirmPassword) {
+      setMessage('Passwords must match.')
+      return
+    }
+
+    if (!formData.email || !formData.password || !formData.fullName) {
+      setMessage('Please complete all required fields.')
+      return
+    }
+
+    const result = await registerInitiate(formData)
+
+    if (!result.ok) {
+      setMessage(result.message)
+      return
+    }
+
+    setEmailForOtp(formData.email)
+    setShowOtpModal(true)
+    setMessageType('success')
     setMessage(result.message)
-    setEmployeeId(result.ok ? result.user.employeeId : '')
+  }
+
+  async function handleVerifyOtp(event) {
+    event.preventDefault()
+    setMessage('')
+    setMessageType('error')
+
+    const result = await verifyRegistration({ email: emailForOtp, otp })
+
+    if (!result.ok) {
+      setMessage(result.message)
+      return
+    }
+
+    setShowOtpModal(false)
+    setMessageType('success')
+    setMessage(result.message)
   }
 
   return (
-    <section className="auth-card" aria-labelledby="register-title">
+    <section className="auth-card auth-card--register" aria-labelledby="register-title">
       <p className="eyebrow">AI Call Center Evaluation</p>
       <h1 id="register-title">Create Account</h1>
 
@@ -58,26 +101,66 @@ function Register({ onShowLogin }) {
         />
 
         <label htmlFor="register-password">Password</label>
-        <input
-          id="register-password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          value={formData.password}
-          onChange={updateField}
-          required
-        />
+        <div className="password-field">
+          <input
+            id="register-password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            value={formData.password}
+            onChange={updateField}
+            required
+          />
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setShowPassword((current) => !current)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? (
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10.58 10.58a3 3 0 0 0 4.24 4.24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" fill="none" />
+              </svg>
+            )}
+          </button>
+        </div>
 
         <label htmlFor="register-confirm-password">Confirm Password</label>
-        <input
-          id="register-confirm-password"
-          name="confirmPassword"
-          type="password"
-          autoComplete="new-password"
-          value={formData.confirmPassword}
-          onChange={updateField}
-          required
-        />
+        <div className="password-field">
+          <input
+            id="register-confirm-password"
+            name="confirmPassword"
+            type={showConfirmPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            value={formData.confirmPassword}
+            onChange={updateField}
+            required
+          />
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setShowConfirmPassword((current) => !current)}
+            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+          >
+            {showConfirmPassword ? (
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10.58 10.58a3 3 0 0 0 4.24 4.24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" fill="none" />
+              </svg>
+            )}
+          </button>
+        </div>
 
         <fieldset className="role-fieldset">
           <legend>Role</legend>
@@ -106,14 +189,34 @@ function Register({ onShowLogin }) {
         {formData.role === 'Manager' ? (
           <div className="manager-key-block">
             <label htmlFor="manager-key">Manager Enrollment Key</label>
-            <input
-              id="manager-key"
-              name="managerKey"
-              type="password"
-              value={formData.managerKey}
-              onChange={updateField}
-              required
-            />
+              <div className="password-field">
+                <input
+                  id="manager-key"
+                  name="managerKey"
+                  type={showManagerKey ? 'text' : 'password'}
+                  value={formData.managerKey}
+                  onChange={updateField}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowManagerKey((c) => !c)}
+                  aria-label={showManagerKey ? 'Hide manager key' : 'Show manager key'}
+                >
+                  {showManagerKey ? (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M10.58 10.58a3 3 0 0 0 4.24 4.24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" fill="none" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             <p className="field-help">
               Demo key: <strong>{managerEnrollmentKey}</strong>
             </p>
@@ -121,9 +224,7 @@ function Register({ onShowLogin }) {
         ) : null}
 
         {message ? (
-          <p className={`form-message ${employeeId ? 'success' : 'error'}`}>
-            {message}
-          </p>
+          <p className={`form-message ${messageType}`}>{message}</p>
         ) : null}
 
         <button className="primary-button" type="submit">
@@ -137,6 +238,36 @@ function Register({ onShowLogin }) {
           Login
         </button>
       </div>
+
+      {showOtpModal ? (
+        <div className="otp-backdrop" role="dialog" aria-modal="true">
+          <div className="otp-modal">
+            <h2>Verify your email</h2>
+            <p>Enter the OTP sent to <strong>{emailForOtp}</strong>.</p>
+            <form onSubmit={handleVerifyOtp} className="otp-form">
+              <label htmlFor="otp-code">OTP Code</label>
+              <input
+                id="otp-code"
+                name="otp"
+                type="text"
+                inputMode="numeric"
+                pattern="\d{6}"
+                value={otp}
+                onChange={(event) => setOtp(event.target.value)}
+                required
+              />
+              <div className="otp-actions">
+                <button type="button" className="text-button" onClick={() => setShowOtpModal(false)}>
+                  Cancel
+                </button>
+                <button className="primary-button" type="submit">
+                  Verify OTP
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }

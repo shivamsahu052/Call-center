@@ -5,3 +5,9 @@ numpy
 pywin32
 faster-whisper
 deep-translator
+fastapi
+uvicorn[standard]
+pymongo
+python-dotenv
+passlib[bcrypt]
+email-validator

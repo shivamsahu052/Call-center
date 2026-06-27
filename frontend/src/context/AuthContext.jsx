@@ -2,8 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
 const AuthContext = createContext(null)
 
-const USERS_STORAGE_KEY = 'call-center-users'
 const SESSION_STORAGE_KEY = 'call-center-session'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 const MANAGER_ENROLLMENT_KEY = 'MANAGER-2026'
 
 function readJson(key, fallback) {
@@ -19,27 +19,26 @@ function normalizeEmail(email) {
   return email.trim().toLowerCase()
 }
 
-function createEmployeeId(role, users) {
-  const prefix = role === 'Manager' ? 'MGR' : 'EMP'
-  let employeeId = ''
+async function apiFetch(path, data) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
 
-  do {
-    const randomNumber = Math.floor(100000 + Math.random() * 900000)
-    employeeId = `${prefix}-${randomNumber}`
-  } while (users.some((user) => user.employeeId === employeeId))
+  const payload = await response.json()
 
-  return employeeId
+  if (!response.ok) {
+    throw new Error(payload.detail || payload.message || 'Request failed')
+  }
+
+  return payload
 }
 
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => readJson(USERS_STORAGE_KEY, []))
   const [currentUser, setCurrentUser] = useState(() =>
     readJson(SESSION_STORAGE_KEY, null),
   )
-
-  useEffect(() => {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
-  }, [users])
 
   useEffect(() => {
     if (currentUser) {
@@ -50,80 +49,55 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(SESSION_STORAGE_KEY)
   }, [currentUser])
 
-  function register(payload) {
-    const fullName = payload.fullName.trim()
-    const email = normalizeEmail(payload.email)
-    const role = payload.role
-
-    if (!fullName || !email || !payload.password || !payload.confirmPassword) {
-      return { ok: false, message: 'Please fill in every required field.' }
-    }
-
-    if (payload.password.length < 6) {
-      return {
-        ok: false,
-        message: 'Password must be at least 6 characters long.',
-      }
-    }
-
-    if (payload.password !== payload.confirmPassword) {
-      return { ok: false, message: 'Passwords do not match.' }
-    }
-
-    if (users.some((user) => user.email === email)) {
-      return { ok: false, message: 'An account already exists for this email.' }
-    }
-
-    if (role === 'Manager') {
-      const managerExists = users.some((user) => user.role === 'Manager')
-
-      if (managerExists) {
-        return {
-          ok: false,
-          message: 'A manager is already enrolled for this evaluation portal.',
-        }
-      }
-
-      if (payload.managerKey.trim() !== MANAGER_ENROLLMENT_KEY) {
-        return {
-          ok: false,
-          message: 'Manager enrollment key is invalid.',
-        }
-      }
-    }
-
-    const newUser = {
-      fullName,
-      email,
-      password: payload.password,
-      role,
-      employeeId: createEmployeeId(role, users),
-      createdAt: new Date().toISOString(),
-    }
-
-    setUsers((previousUsers) => [...previousUsers, newUser])
-    setCurrentUser(stripPrivateFields(newUser))
-
-    return {
-      ok: true,
-      message: `Account created. Your employee ID is ${newUser.employeeId}.`,
-      user: stripPrivateFields(newUser),
+  async function login(payload) {
+    try {
+      const result = await apiFetch('/api/auth/login', payload)
+      setCurrentUser(result.user)
+      return { ok: true, user: result.user }
+    } catch (error) {
+      return { ok: false, message: error.message }
     }
   }
 
-  function login({ email, password }) {
-    const normalizedEmail = normalizeEmail(email)
-    const foundUser = users.find(
-      (user) => user.email === normalizedEmail && user.password === password,
-    )
-
-    if (!foundUser) {
-      return { ok: false, message: 'Invalid email or password.' }
+  async function registerInitiate(payload) {
+    try {
+      await apiFetch('/api/auth/register-initiate', payload)
+      return {
+        ok: true,
+        message: 'An OTP has been sent to your email. Please verify it to complete registration.',
+      }
+    } catch (error) {
+      return { ok: false, message: error.message }
     }
+  }
 
-    const safeUser = stripPrivateFields(foundUser)
-    setCurrentUser(safeUser)
-    return { ok: true, user: safeUser }
+  async function verifyRegistration(payload) {
+    try {
+      const result = await apiFetch('/api/auth/register-verify', payload)
+      setCurrentUser(result.user)
+      return { ok: true, user: result.user, message: result.message }
+    } catch (error) {
+      return { ok: false, message: error.message }
+    }
+  }
+
+  async function resetInitiate(payload) {
+    try {
+      const result = await apiFetch('/api/auth/reset-initiate', payload)
+      return { ok: true, message: result.message, otp: result.otp }
+    } catch (error) {
+      return { ok: false, message: error.message }
+    }
+  }
+
+  async function resetComplete(payload) {
+    try {
+      const result = await apiFetch('/api/auth/reset-complete', payload)
+      // Do not auto-login; optionally return user info
+      return { ok: true, message: result.message }
+    } catch (error) {
+      return { ok: false, message: error.message }
+    }
   }
 
   function logout() {
@@ -136,10 +110,12 @@ export function AuthProvider({ children }) {
       login,
       logout,
       managerEnrollmentKey: MANAGER_ENROLLMENT_KEY,
-      register,
-      users,
+      registerInitiate,
+      verifyRegistration,
+      resetInitiate,
+      resetComplete,
     }),
-    [currentUser, users],
+    [currentUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
