@@ -5,6 +5,7 @@ import smtplib
 import ssl
 from datetime import datetime, timedelta
 from email.message import EmailMessage
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -16,9 +17,14 @@ from pydantic import BaseModel, EmailStr, constr
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 
-load_dotenv()
+try:
+    from .api.transcription import router as transcription_router
+except ImportError:
+    from api.transcription import router as transcription_router
 
-MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
+load_dotenv(Path(__file__).with_name('.env'))
+
+MONGODB_URI = os.getenv('MONGODB_URI') or os.getenv('MONGODB_URL', 'mongodb://localhost:27017')
 MONGODB_DB = os.getenv('MONGODB_DB', 'call_center_auth')
 MANAGER_ENROLLMENT_KEY = os.getenv('MANAGER_ENROLLMENT_KEY', 'MANAGER-2026')
 SMTP_HOST = os.getenv('SMTP_HOST')
@@ -54,6 +60,7 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+app.include_router(transcription_router)
 
 
 @app.exception_handler(HTTPException)

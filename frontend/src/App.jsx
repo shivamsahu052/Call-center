@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import CallTranscription from './pages/CallTranscription.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import './App.css'
@@ -8,25 +9,7 @@ function AuthScreen() {
   const { currentUser, logout } = useAuth()
 
   if (currentUser) {
-    return (
-      <main className="auth-shell">
-        <section className="auth-card compact-card" aria-labelledby="welcome-title">
-          <p className="eyebrow">AI Call Center Evaluation</p>
-          <h1 id="welcome-title">Welcome, {currentUser.fullName}</h1>
-          <div className="account-summary">
-            <span>{currentUser.role}</span>
-            <strong>{currentUser.employeeId}</strong>
-          </div>
-          <p className="muted">
-            You are logged in successfully. Dashboard pages can be connected after
-            this authentication step is ready.
-          </p>
-          <button className="primary-button" type="button" onClick={logout}>
-            Logout
-          </button>
-        </section>
-      </main>
-    )
+    return <CallTranscription currentUser={currentUser} onLogout={logout} />
   }
 
   return <AuthSwitcher />

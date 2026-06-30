@@ -1,0 +1,7 @@
+INFO:     127.0.0.1:53776 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64483 - "OPTIONS /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64483 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52365 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50627 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50529 - "POST /api/transcription/upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60552 - "POST /api/transcription/upload HTTP/1.1" 200 OK

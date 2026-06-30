@@ -11,3 +11,4 @@ pymongo
 python-dotenv
 passlib[bcrypt]
 email-validator
+python-multipart

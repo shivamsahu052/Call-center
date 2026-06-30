@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { API_BASE_URL } from '../config/api.js'
 
 const AuthContext = createContext(null)
 
 const SESSION_STORAGE_KEY = 'call-center-session'
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 const MANAGER_ENROLLMENT_KEY = 'MANAGER-2026'
 
 function readJson(key, fallback) {
