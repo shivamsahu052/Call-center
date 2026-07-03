@@ -4,9 +4,13 @@ from pathlib import Path
 import time
 
 import numpy as np
-import pythoncom
 import soundcard as sc
 import soundfile as sf
+
+try:
+    import pythoncom
+except ImportError:
+    pythoncom = None
 
 SAMPLE_RATE = 16000
 OUTPUT_FILE = Path(__file__).with_name("temp.wav")
@@ -24,6 +28,9 @@ class VoiceActivityConfig:
 
 
 def _initialize_com():
+    if pythoncom is None:
+        return False
+
     try:
         pythoncom.CoInitializeEx(pythoncom.COINIT_MULTITHREADED)
         return True
@@ -32,6 +39,11 @@ def _initialize_com():
         if exc.hresult != -2147417850:
             raise
         return False
+
+
+def _uninitialize_com(com_initialized):
+    if com_initialized and pythoncom is not None:
+        pythoncom.CoUninitialize()
 
 
 def _default_loopback_microphone():
@@ -87,8 +99,7 @@ def record_audio(seconds=5, source="system", output_file=OUTPUT_FILE, sample_rat
         sf.write(output_file, _to_mono(data), sample_rate)
         return str(output_file)
     finally:
-        if com_initialized:
-            pythoncom.CoUninitialize()
+        _uninitialize_com(com_initialized)
 
 
 def record_voice_chunk(
@@ -114,8 +125,7 @@ def record_voice_chunk(
         sf.write(output_file, audio, config.sample_rate)
         return str(output_file)
     finally:
-        if com_initialized:
-            pythoncom.CoUninitialize()
+        _uninitialize_com(com_initialized)
 
 
 def record_voice_clip(
@@ -176,8 +186,7 @@ def record_voice_clip(
         sf.write(output_file, np.concatenate(frames), config.sample_rate)
         return str(output_file)
     finally:
-        if com_initialized:
-            pythoncom.CoUninitialize()
+        _uninitialize_com(com_initialized)
 
 
 def record_system_audio(seconds=5):

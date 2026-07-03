@@ -1,8 +1,7 @@
-streamlit
 soundcard
 soundfile
 numpy
-pywin32
+pywin32; platform_system == "Windows"
 faster-whisper
 deep-translator
 fastapi

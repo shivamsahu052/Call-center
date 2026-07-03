@@ -1,3 +1,6 @@
+import re
+
+
 DEVANAGARI_VOWELS = {
     "अ": "a",
     "आ": "aa",
@@ -90,10 +93,54 @@ DEVANAGARI_DIGITS = {
     "९": "9",
 }
 
+HINGLISH_SPELLING_FIXES = {
+    "aaga": "aayega",
+    "aagaa": "aayega",
+    "anujha": "Anuja",
+    "andara": "andar",
+    "aapa": "aap",
+    "aapake": "aapke",
+    "aapakaa": "aapka",
+    "aapako": "aapko",
+    "apanaa": "apna",
+    "aatee": "aati",
+    "aura": "aur",
+    "bataa": "bata",
+    "cheka": "check",
+    "daaraa": "dwara",
+    "detaa": "deta",
+    "eka": "ek",
+    "gante": "ghante",
+    "hamaaree": "hamari",
+    "isalie": "isliye",
+    "jaaegee": "jaayegi",
+    "jaaengee": "jaayegi",
+    "kaba": "kab",
+    "kara": "kar",
+    "kee": "ki",
+    "kiyaa": "kiya",
+    "kyaa": "kya",
+    "lie": "liye",
+    "mainne": "maine",
+    "men": "mein",
+    "meraa": "mera",
+    "minita": "minute",
+    "naama": "naam",
+    "paola": "call",
+    "phahuncha": "pahunch",
+    "praoblama": "problem",
+    "roopo": "rukiye",
+    "sara": "sir",
+    "sakaate": "sakte",
+    "takaa": "tak",
+    "taka": "tak",
+    "thaa": "tha",
+}
+
 
 def romanize_text(text):
     if not any("\u0900" <= character <= "\u097f" for character in text):
-        return text
+        return normalize_hinglish_spelling(text)
 
     output = []
     index = 0
@@ -125,7 +172,15 @@ def romanize_text(text):
 
         index += 1
 
-    return _normalize_spacing("".join(output))
+    return normalize_hinglish_spelling(_normalize_spacing("".join(output)))
+
+
+def normalize_hinglish_spelling(text):
+    """Clean common phonetic Hinglish spellings in display transcripts."""
+    if not text:
+        return text
+
+    return re.sub(r"\b[A-Za-z]+\b", _replace_hinglish_word, text)
 
 
 def _consonant_sound(character, next_character):
@@ -140,3 +195,19 @@ def _consonant_sound(character, next_character):
 def _normalize_spacing(text):
     text = text.replace(" ,", ",").replace(" .", ".").replace(" ?", "?").replace(" !", "!")
     return " ".join(text.split())
+
+
+def _replace_hinglish_word(match):
+    word = match.group(0)
+    replacement = HINGLISH_SPELLING_FIXES.get(word.lower())
+
+    if replacement is None:
+        return word
+
+    if word.isupper():
+        return replacement.upper()
+
+    if word[:1].isupper():
+        return replacement.capitalize()
+
+    return replacement

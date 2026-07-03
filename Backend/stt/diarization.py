@@ -43,6 +43,17 @@ AGENT_HINTS = (
     "it will take",
     "our service will reach",
     "email information",
+    "aap apna",
+    "bata sakte",
+    "register mobile number",
+    "registered mobile number",
+    "maine aapke details",
+    "details check",
+    "warranty mein",
+    "service request register",
+    "sms aur email",
+    "email ke dwara",
+    "hamari service",
 )
 
 CUSTOMER_HINTS = (
@@ -74,6 +85,12 @@ CUSTOMER_HINTS = (
     "wait a minute",
     "called for service",
     "okay sir",
+    "mera laptop",
+    "problem aati",
+    "service ke liye call",
+    "rukiye",
+    "ek minute",
+    "engineer kab",
 )
 
 SPOKEN_NUMBERS = {
@@ -112,6 +129,7 @@ def add_speaker_labels(segments, audio_path=None):
     if diarized_segments:
         return _merge_adjacent_segments(_apply_clear_role_names(diarized_segments))
 
+    segments = _split_likely_role_changes(segments)
     current_role = "agent"
     expecting_customer = False
     collecting_account_number = False
@@ -119,7 +137,12 @@ def add_speaker_labels(segments, audio_path=None):
 
     for segment in segments:
         text = segment.get("text", "")
-        role = _infer_role(text, current_role, expecting_customer, collecting_account_number)
+        existing_role = _standard_role_label(segment.get("speaker"))
+        role = (
+            existing_role.lower()
+            if existing_role
+            else _infer_role(text, current_role, expecting_customer, collecting_account_number)
+        )
 
         if role:
             current_role = role
@@ -172,7 +195,8 @@ def diarize_audio(audio_path):
             model_name = os.getenv("PYANNOTE_MODEL", "pyannote/speaker-diarization-3.1")
             _pyannote_pipeline = Pipeline.from_pretrained(model_name, use_auth_token=token)
 
-        diarization = _pyannote_pipeline(str(audio_path))
+        speaker_count = int(os.getenv("PYANNOTE_NUM_SPEAKERS", "2"))
+        diarization = _pyannote_pipeline(str(audio_path), num_speakers=speaker_count)
         speaker_names = {}
         speaker_turns = []
 
@@ -392,6 +416,117 @@ def _infer_role(text, current_role, expecting_customer, collecting_account_numbe
         return "customer"
 
     return None
+
+
+def _split_likely_role_changes(segments):
+    split_segments = []
+
+    for segment in segments:
+        parts = _split_text_by_role_cues(segment.get("text", ""))
+
+        if len(parts) <= 1:
+            split_segments.append(segment)
+            continue
+
+        segment_start = float(segment.get("start", 0) or 0)
+        segment_end = float(segment.get("end", segment_start) or segment_start)
+        duration = max(segment_end - segment_start, 0)
+        total_length = sum(max(len(text), 1) for text, _role in parts)
+        cursor = segment_start
+
+        for index, (text, role) in enumerate(parts):
+            if index == len(parts) - 1:
+                end = segment_end
+            elif duration:
+                proportion = max(len(text), 1) / total_length
+                end = min(segment_end, cursor + duration * proportion)
+            else:
+                end = cursor
+
+            split_segments.append(
+                {
+                    **segment,
+                    "start": round(cursor, 2),
+                    "end": round(end, 2),
+                    "text": text,
+                    "speaker": ROLE_SPEAKERS[role],
+                }
+            )
+            cursor = end
+
+    return split_segments
+
+
+def _split_text_by_role_cues(text):
+    sentences = _sentence_parts(text)
+
+    if len(sentences) <= 1:
+        return [(text, None)] if text else []
+
+    parts = []
+    current_role = None
+    buffer = []
+    expecting_customer = False
+    collecting_account_number = False
+
+    for sentence in sentences:
+        role = _infer_role(sentence, current_role or "agent", expecting_customer, collecting_account_number)
+        normalized = _normalize_text(sentence)
+
+        if role is None:
+            role = "customer" if expecting_customer else current_role
+
+        if role is None:
+            role = "agent" if not parts and not buffer else current_role or "customer"
+
+        if buffer and role != current_role:
+            parts.append((" ".join(buffer).strip(), current_role))
+            buffer = []
+
+        current_role = role
+        buffer.append(sentence)
+        expecting_customer = any(
+            hint in normalized
+            for hint in (
+                "how can i help",
+                "how may i help",
+                "may i help",
+                "how can i assist",
+                "is there anything else",
+                "anything else",
+            )
+        )
+        collecting_account_number = (
+            "register number" in normalized
+            or "registered number" in normalized
+            or (
+                collecting_account_number
+                and current_role == "customer"
+                and _is_account_number_part(normalized)
+            )
+        )
+
+        if current_role == "agent" and "thank you sir" in normalized:
+            collecting_account_number = False
+
+    if buffer:
+        parts.append((" ".join(buffer).strip(), current_role))
+
+    return parts
+
+
+def _sentence_parts(text):
+    import re
+
+    text = str(text or "").strip()
+    text = re.sub(r"(\b\d{6,}\b)\s+(Thank you sir\b)", r"\1. \2", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+(Engineer kab\b)", r". \1", text, flags=re.IGNORECASE)
+
+    return [
+        part.strip()
+        for part in re.split(r"(?<=[.!?])\s+", text)
+        if part.strip()
+    ]
 
 
 def _normalize_text(text):

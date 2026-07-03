@@ -1,9 +1,18 @@
 from datetime import datetime
 
 import streamlit as st
-from audio_capture import VoiceActivityConfig, record_voice_chunk
-from transcriber import transcribe
-from translator import translate_to_hindi
+
+try:
+    from .audio_capture import VoiceActivityConfig, record_voice_chunk
+    from .transcriber import transcribe
+    from .translator import translate_to_hindi
+except ImportError:
+    if __package__:
+        raise
+
+    from audio_capture import VoiceActivityConfig, record_voice_chunk
+    from transcriber import transcribe
+    from translator import translate_to_hindi
 
 st.title("AI Call Center Live Transcription")
 
