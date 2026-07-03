@@ -1,0 +1,19 @@
+Agent (00:01 - 00:11): Hello sir. Hello. Hello sir. Good morning. Thank you for calling. Take care. Laptop supporter. My name is Shivam. How can I help you today?
+
+Customer (00:11 - 00:20): Hello. My name is Manujay. My laptop is hanging and over heating problem. Sir. That is why I called for service. Yes sir.
+
+Agent (00:20 - 00:22): Can you tell your register number?
+
+Customer (00:22 - 00:31): Yes. Wait a minute. Nine eight. Seven six. Five four. Three two. One zero.
+
+Agent (00:31 - 00:38): Thank you sir. I have checked your details. Your laptop is in warranty. I will register your service. I will register your service.
+
+Customer (00:38 - 00:40): How long will it take?
+
+Agent (00:40 - 00:50): It will take 8 hours. Our service will reach you. You will get SMS and email information.
+
+Customer (00:50 - 00:52): Okay sir. Thank you.
+
+Agent (00:52 - 01:01): You are welcome sir. Your service ticket has successfully created. Thank you for calling. Take care. Laptop support. Have a great day.
+
+Customer (01:01 - 01:03): Thank you sir. Goodbye.

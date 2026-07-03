@@ -1,0 +1,11 @@
+Agent (00:00 - 00:10): Hello sir, good morning. Thank you for calling. Connect mobile customer here. My name is Anderson. How can I help you?
+
+Customer (00:10 - 00:20): Hello, my name is Shima. My mobile is in the past 2-3 days of the network. It is not a call, but it is coming from the internet.
+
+Agent (00:20 - 00:22): Yes sir. How can I help you?
+
+Customer (00:22 - 00:50): First of all, give me your register number for verification. Yes, my number is 9, 7, 6, 5, 4, 3, 1, 0. Thank you, sir. I will give you one minute. I will check your details. Yes, sir. I have verified your account. Is this problem happening everywhere or is it just a location?
+
+Customer (00:51 - 01:35): Yes, it is also in the house and office. Okay sir. Did you start the phone or start the SIM twice? Yes, I have tried both of them, but it is not a problem. Okay sir. I will check the network. Your network is running in the area of our system. And our technical team is working on it. Sir, how long will it take? Sir, I would like to get the issue resolved within 4 hours. I will also register for you. So that you can check it on the priority. Sir, I will get my number.
+
+Agent (01:35 - 01:56): Yes sir. Your complaint number is written. N, W, 4, 5, 8, 9, 2, 1. You will get the same information on SMS. Yes sir. Thank you. You are welcome sir. Thank you for calling connect mobile customer here. Have a great day.

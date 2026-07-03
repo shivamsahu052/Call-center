@@ -20,11 +20,17 @@ function normalizeEmail(email) {
 }
 
 async function apiFetch(path, data) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  })
+  let response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+  } catch {
+    throw new Error(`Cannot reach API server at ${API_BASE_URL}`)
+  }
 
   const payload = await response.json()
 

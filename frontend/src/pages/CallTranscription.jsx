@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react'
 import { API_BASE_URL } from '../config/api.js'
 
 const languageOptions = [
-  { value: 'auto', label: 'Auto detect' },
-  { value: 'en', label: 'English' },
-  { value: 'hi', label: 'Hindi' },
+  { value: 'auto', label: 'Auto detect / mixed' },
+  { value: 'en', label: 'English only' },
+  { value: 'hi', label: 'Hindi only' },
 ]
 
 const outputLanguageOptions = [
-  { value: 'hi', label: 'Hindi script' },
-  { value: 'original', label: 'Original script' },
+  { value: 'original', label: 'Original speech' },
+  { value: 'hi', label: 'Hindi translation' },
 ]
 
 function formatFileSize(bytes) {
@@ -32,10 +32,10 @@ function formatTime(seconds) {
   return `${minutes}:${String(remainder).padStart(2, '0')}`
 }
 
-function CallTranscription({ currentUser, onLogout }) {
+function CallTranscription({ currentUser, onCallAnalyzed, onOpenCall }) {
   const [audioFile, setAudioFile] = useState(null)
   const [language, setLanguage] = useState('auto')
-  const [outputLanguage, setOutputLanguage] = useState('hi')
+  const [outputLanguage, setOutputLanguage] = useState('original')
   const [result, setResult] = useState(null)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('error')
@@ -50,13 +50,17 @@ function CallTranscription({ currentUser, onLogout }) {
     return result.segments.map((segment) => ({
       ...segment,
       timeLabel: `${formatTime(segment.start)} - ${formatTime(segment.end)}`,
+      speakerRole: getSpeakerRole(segment.speaker),
     }))
   }, [result])
 
   const scriptText = useMemo(() => {
     if (transcriptLines.length) {
       return transcriptLines
-        .map((segment) => `${segment.speaker} (${segment.timeLabel})\n${segment.text}`)
+        .map((segment) => {
+          const detail = segment.speakerRole.detail ? ` / ${segment.speakerRole.detail}` : ''
+          return `${segment.speakerRole.label}${detail} (${segment.timeLabel})\n${segment.text}`
+        })
         .join('\n\n')
     }
 
@@ -83,6 +87,8 @@ function CallTranscription({ currentUser, onLogout }) {
     formData.append('file', audioFile)
     formData.append('language', language)
     formData.append('outputLanguage', outputLanguage)
+    formData.append('employeeId', currentUser.employeeId)
+    formData.append('employeeName', currentUser.fullName)
 
     setIsUploading(true)
     setMessage('')
@@ -100,8 +106,13 @@ function CallTranscription({ currentUser, onLogout }) {
       }
 
       setResult(payload)
-      setMessageType(payload.translationError ? 'error' : 'success')
-      setMessage(payload.translationError || 'Transcription complete.')
+      onCallAnalyzed?.(payload.callId)
+      setMessageType(payload.translationError || payload.transcriptionWarning ? 'error' : 'success')
+      setMessage(
+        payload.translationError
+          || payload.transcriptionWarning
+          || 'Transcription and AI evaluation complete.'
+      )
     } catch (error) {
       setMessageType('error')
       setMessage(error.message)
@@ -140,21 +151,7 @@ function CallTranscription({ currentUser, onLogout }) {
   }
 
   return (
-    <main className="workspace-shell">
-      <header className="workspace-header">
-        <div>
-          <p className="eyebrow">AI Call Center Evaluation</p>
-          <h1>Call Transcription</h1>
-        </div>
-        <div className="user-panel" aria-label="Current user">
-          <span>{currentUser.fullName}</span>
-          <strong>{currentUser.employeeId}</strong>
-          <button className="secondary-button" type="button" onClick={onLogout}>
-            Logout
-          </button>
-        </div>
-      </header>
-
+    <>
       <section className="upload-layout" aria-label="Audio transcription workspace">
         <form className="upload-panel" onSubmit={handleSubmit}>
           <div className="panel-heading">
@@ -239,11 +236,24 @@ function CallTranscription({ currentUser, onLogout }) {
 
           {displayTranscript ? (
             <div className="script-content">
+              {result?.evaluation ? (
+                <EvaluationSnapshot
+                  evaluation={result.evaluation}
+                  callId={result.callId}
+                  onOpenCall={onOpenCall}
+                />
+              ) : null}
               {transcriptLines.length ? (
                 transcriptLines.map((segment) => (
-                  <article className="script-line" key={segment.id}>
+                  <article
+                    className={`script-line ${segment.speakerRole.className}`}
+                    key={segment.id}
+                  >
                     <div className="script-line-meta">
-                      <span>{segment.speaker}</span>
+                      <span className="speaker-label">
+                        {segment.speakerRole.label}
+                        {segment.speakerRole.detail ? <small>{segment.speakerRole.detail}</small> : null}
+                      </span>
                       <time>{segment.timeLabel}</time>
                     </div>
                     <p>{segment.text}</p>
@@ -261,8 +271,78 @@ function CallTranscription({ currentUser, onLogout }) {
           )}
         </section>
       </section>
-    </main>
+    </>
   )
+}
+
+function EvaluationSnapshot({ evaluation, callId, onOpenCall }) {
+  const satisfaction = evaluation.predictedSatisfaction || {}
+  const resolution = evaluation.resolutionAnalysis || {}
+  const miscommunication = evaluation.miscommunication || {}
+  const skillGap = evaluation.skillGapAnalysis || {}
+
+  return (
+    <section className="evaluation-snapshot" aria-label="AI evaluation snapshot">
+      <div className="snapshot-score">
+        <span>Predicted Satisfaction</span>
+        <strong>{satisfaction.score || 0}%</strong>
+      </div>
+      <div className="snapshot-grid">
+        <SnapshotItem label="Resolution" value={resolution.status || 'Not evaluated'} />
+        <SnapshotItem
+          label="Miscommunication"
+          value={miscommunication.detected ? 'Detected' : 'No major issue'}
+        />
+        <SnapshotItem label="Biggest Skill Gap" value={skillGap.biggestSkillGap || 'None'} />
+        <SnapshotItem label="Priority" value={skillGap.priority || 'Low'} />
+      </div>
+      <div className="snapshot-actions">
+        <button
+          className="secondary-button"
+          type="button"
+          disabled={!callId}
+          onClick={() => onOpenCall?.(callId)}
+        >
+          Full Analysis
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function SnapshotItem({ label, value }) {
+  return (
+    <div className="summary-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function getSpeakerRole(speaker = '') {
+  const normalized = speaker.toLowerCase()
+
+  if (normalized.includes('customer') || normalized.includes('speaker 2')) {
+    return {
+      label: 'Customer',
+      detail: normalized === 'customer' ? '' : speaker,
+      className: 'speaker-customer',
+    }
+  }
+
+  if (normalized.includes('agent') || normalized.includes('speaker 1')) {
+    return {
+      label: 'Agent',
+      detail: normalized === 'agent' ? '' : speaker,
+      className: 'speaker-agent',
+    }
+  }
+
+  return {
+    label: speaker || 'Speaker',
+    detail: '',
+    className: 'speaker-unknown',
+  }
 }
 
 export default CallTranscription

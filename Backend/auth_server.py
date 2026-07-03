@@ -14,18 +14,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, constr
-from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 
 try:
+    from .api.calls import router as calls_router
     from .api.transcription import router as transcription_router
+    from .database.mongo import (
+        ensure_indexes,
+        pending_collection,
+        password_resets,
+        users_collection,
+    )
 except ImportError:
+    from api.calls import router as calls_router
     from api.transcription import router as transcription_router
+    from database.mongo import ensure_indexes, pending_collection, password_resets, users_collection
 
 load_dotenv(Path(__file__).with_name('.env'))
 
-MONGODB_URI = os.getenv('MONGODB_URI') or os.getenv('MONGODB_URL', 'mongodb://localhost:27017')
-MONGODB_DB = os.getenv('MONGODB_DB', 'call_center_auth')
 MANAGER_ENROLLMENT_KEY = os.getenv('MANAGER_ENROLLMENT_KEY', 'MANAGER-2026')
 SMTP_HOST = os.getenv('SMTP_HOST')
 SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
@@ -34,20 +40,7 @@ SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
 SMTP_FROM = os.getenv('SMTP_FROM', 'Call Center <noreply@example.com>')
 SMTP_USE_TLS = os.getenv('SMTP_USE_TLS', 'true').lower() in ('1', 'true', 'yes')
 
-client = MongoClient(MONGODB_URI)
-db = client[MONGODB_DB]
-users_collection = db.users
-pending_collection = db.pending_registrations
-password_resets = db.password_resets
-
-users_collection.create_index('email', unique=True)
-pending_collection.create_index('email', unique=True)
-password_resets.create_index('email', unique=True)
-
-try:
-    pending_collection.create_index('otpExpiresAt', expireAfterSeconds=600)
-except Exception:
-    pass
+ensure_indexes()
 
 pwd_context = CryptContext(schemes=['pbkdf2_sha256'], deprecated='auto')
 password_pattern = re.compile(r'^(?=.{8,}$)(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).*$')
@@ -61,6 +54,7 @@ app.add_middleware(
     allow_headers=['*'],
 )
 app.include_router(transcription_router)
+app.include_router(calls_router)
 
 
 @app.exception_handler(HTTPException)

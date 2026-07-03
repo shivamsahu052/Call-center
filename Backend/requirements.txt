@@ -12,3 +12,6 @@ python-dotenv
 passlib[bcrypt]
 email-validator
 python-multipart
+transformers
+torch
+pyannote.audio

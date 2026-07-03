@@ -1,20 +1,27 @@
 import os
 import re
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 try:
+    from ..analysis.coaching import evaluate_call
+    from ..database.mongo import calls_collection
     from ..preprocessing.convert_audio import prepare_audio_for_transcription
+    from ..preprocessing.remove_noise import enhance_voice
     from ..preprocessing.remove_noise import remove_noise
     from ..preprocessing.remove_silence import remove_silence
-    from ..translator import translate_texts_to_hindi
+    from ..stt.romanize import romanize_text
 except ImportError:
+    from analysis.coaching import evaluate_call
+    from database.mongo import calls_collection
     from preprocessing.convert_audio import prepare_audio_for_transcription
+    from preprocessing.remove_noise import enhance_voice
     from preprocessing.remove_noise import remove_noise
     from preprocessing.remove_silence import remove_silence
-    from translator import translate_texts_to_hindi
+    from stt.romanize import romanize_text
 
 router = APIRouter(prefix="/api/transcription", tags=["transcription"])
 
@@ -34,7 +41,6 @@ SUPPORTED_EXTENSIONS = {
     ".webm",
 }
 
-
 def _safe_filename(filename):
     clean_name = Path(filename or "call-audio").name
     clean_name = re.sub(r"[^A-Za-z0-9._-]+", "-", clean_name).strip(".-")
@@ -53,6 +59,23 @@ def _validate_audio_file(file):
 
 
 def _transcribe_audio(audio_path, language):
+    provider = os.getenv("STT_PROVIDER", "local").lower()
+
+    if provider == "groq":
+        try:
+            if __package__ and __package__.startswith("Backend."):
+                from ..stt.groq_transcriber import transcribe_with_groq
+            else:
+                from stt.groq_transcriber import transcribe_with_groq
+
+            return transcribe_with_groq(audio_path, language=language)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=str(exc))
+
+    return _transcribe_with_local_whisper(audio_path, language)
+
+
+def _transcribe_with_local_whisper(audio_path, language):
     try:
         if __package__ and __package__.startswith("Backend."):
             from ..stt.transcriber import transcribe_audio
@@ -69,44 +92,80 @@ def _transcribe_audio(audio_path, language):
             )
         raise
 
-    return transcribe_audio(audio_path, language=language)
+    result = transcribe_audio(audio_path, language=language)
+    result.setdefault("provider", "local")
+    result.setdefault("warning", None)
+    return result
+
+
+def _format_timestamp(seconds):
+    safe_seconds = max(float(seconds or 0), 0)
+    minutes = int(safe_seconds // 60)
+    remainder = int(safe_seconds % 60)
+    hours = minutes // 60
+    minutes = minutes % 60
+
+    if hours:
+        return f"{hours:02d}:{minutes:02d}:{remainder:02d}"
+
+    return f"{minutes:02d}:{remainder:02d}"
+
+
+def _format_labeled_transcript(segments):
+    lines = []
+
+    for segment in segments or []:
+        text = str(segment.get("text") or "").strip()
+
+        if not text:
+            continue
+
+        speaker = segment.get("speaker") or "Speaker"
+        start = _format_timestamp(segment.get("start"))
+        end = _format_timestamp(segment.get("end"))
+        lines.append(f"{speaker} ({start} - {end}): {text}")
+
+    return "\n\n".join(lines).strip()
 
 
 def _apply_output_language(result, output_language):
+    romanized_segments = [
+        {
+            **segment,
+            "text": romanize_text(segment["text"]),
+        }
+        for segment in result["segments"]
+    ]
+    romanized_text = " ".join(segment["text"] for segment in romanized_segments).strip()
+
     if output_language != "hi":
         return {
             **result,
-            "displayText": result["text"],
-            "displaySegments": result["segments"],
+            "text": romanized_text,
+            "segments": romanized_segments,
+            "displayText": _format_labeled_transcript(romanized_segments) or romanized_text,
+            "displaySegments": romanized_segments,
             "outputLanguage": "original",
             "translationError": None,
         }
 
-    segment_texts = [segment["text"] for segment in result["segments"]]
-    translated_segments, translation_error = translate_texts_to_hindi(segment_texts)
-    display_segments = [
-        {
-            **segment,
-            "originalText": segment["text"],
-            "text": translated_text,
-        }
-        for segment, translated_text in zip(result["segments"], translated_segments)
-    ]
-
     return {
         **result,
-        "displayText": " ".join(segment["text"] for segment in display_segments).strip(),
-        "displaySegments": display_segments,
-        "outputLanguage": "hi",
-        "translationError": translation_error,
+        "text": romanized_text,
+        "segments": romanized_segments,
+        "displayText": _format_labeled_transcript(romanized_segments) or romanized_text,
+        "displaySegments": romanized_segments,
+        "outputLanguage": "hi-roman",
+        "translationError": None,
     }
-
 
 @router.post("/upload")
 async def upload_audio_for_transcription(
     file: UploadFile = File(...),
     language: str = Form("auto"),
     outputLanguage: str = Form("original"),
+    employeeId: str = Form("UNASSIGNED"),
+    employeeName: str = Form("Unknown Employee"),
 ):
     _validate_audio_file(file)
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -135,10 +194,11 @@ async def upload_audio_for_transcription(
         await file.close()
 
     try:
-        prepared_path = prepare_audio_for_transcription(
-            remove_silence(remove_noise(saved_path))
-        )
-        result = _transcribe_audio(prepared_path, language=language)
+        prepared_path = prepare_audio_for_transcription(saved_path)
+        cleaned_path = remove_noise(prepared_path)
+        enhanced_path = enhance_voice(cleaned_path)
+        final_audio_path = remove_silence(enhanced_path)
+        result = _transcribe_audio(final_audio_path, language=language)
         result = _apply_output_language(result, outputLanguage)
     except HTTPException:
         raise
@@ -152,8 +212,37 @@ async def upload_audio_for_transcription(
     transcript_path = UPLOAD_DIR / transcript_name
     transcript_path.write_text(result["displayText"], encoding="utf-8")
 
+    evaluation = evaluate_call(
+        {
+            "transcript": result["text"],
+            "segments": result["segments"],
+            "originalSegments": result["segments"],
+            "duration": result["duration"],
+        }
+    )
+    call_document = {
+        "filename": original_name,
+        "storedFilename": saved_name,
+        "transcriptFile": transcript_name,
+        "employeeId": employeeId.strip() or "UNASSIGNED",
+        "employeeName": employeeName.strip() or "Unknown Employee",
+        "transcript": result["text"],
+        "displayTranscript": result["displayText"],
+        "segments": result["displaySegments"],
+        "originalSegments": result["segments"],
+        "language": result["language"],
+        "outputLanguage": result["outputLanguage"],
+        "duration": result["duration"],
+        "transcriptionProvider": result.get("provider"),
+        "transcriptionWarning": result.get("warning"),
+        "evaluation": evaluation,
+        "createdAt": datetime.utcnow(),
+    }
+    inserted = calls_collection.insert_one(call_document)
+
     return {
         "ok": True,
+        "callId": str(inserted.inserted_id),
         "filename": original_name,
         "storedFilename": saved_name,
         "transcriptFile": transcript_name,
@@ -164,5 +253,8 @@ async def upload_audio_for_transcription(
         "language": result["language"],
         "outputLanguage": result["outputLanguage"],
         "translationError": result["translationError"],
+        "transcriptionProvider": result.get("provider"),
+        "transcriptionWarning": result.get("warning"),
         "duration": result["duration"],
+        "evaluation": evaluation,
     }
