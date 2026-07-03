@@ -74,7 +74,7 @@ function CallDetails({ callId, onBack }) {
         <h2>Call details unavailable</h2>
         <p>{message}</p>
         <button className="primary-button compact-action" type="button" onClick={onBack}>
-          Back to Home
+          Back
         </button>
       </section>
     )
@@ -88,7 +88,7 @@ function CallDetails({ callId, onBack }) {
     <section className="call-detail-grid" aria-label="Call details">
       <section className="dashboard-panel wide-panel detail-hero">
         <button className="text-button detail-back" type="button" onClick={onBack}>
-          Back to Home
+          Back
         </button>
         <div>
           <p className="eyebrow">Call Summary</p>

@@ -8,11 +8,11 @@ from datetime import datetime
 try:
     from .empathy import analyze_empathy, extract_customer_emotion
     from .scoring import count_interruptions, estimate_repeated_issue_count, score_call
-    from .sentiment import analyze_sentiment
+    from .sentiment import analyze_customer_sentiment_agent
 except ImportError:
     from empathy import analyze_empathy, extract_customer_emotion
     from scoring import count_interruptions, estimate_repeated_issue_count, score_call
-    from sentiment import analyze_sentiment
+    from sentiment import analyze_customer_sentiment_agent
 
 CUSTOMER_REQUEST_PATTERNS = {
     "Plan upgrade/change": ("change my plan", "upgrade", "downgrade", "broadband plan", "plan"),
@@ -73,13 +73,26 @@ def evaluate_call(call_payload):
 
 
 def _build_local_evaluation(transcript, segments, call_payload):
-    sentiment = analyze_sentiment(transcript)
     empathy = analyze_empathy(_agent_text(segments, transcript))
     base_score = score_call(transcript)
-    customer_request = _detect_intent(_customer_text(segments, transcript), CUSTOMER_REQUEST_PATTERNS)
-    agent_response = _detect_intent(_agent_text(segments, transcript), AGENT_RESPONSE_PATTERNS)
+    customer_text = _customer_text(segments, transcript)
+    agent_text = _agent_text(segments, transcript)
+    customer_request = _detect_intent(customer_text, CUSTOMER_REQUEST_PATTERNS)
+    agent_response = _detect_intent(agent_text, AGENT_RESPONSE_PATTERNS)
     miscommunication = _detect_miscommunication(customer_request, agent_response, transcript)
     resolution = _analyze_resolution(transcript, base_score["signals"])
+    repeated_issue_count = estimate_repeated_issue_count(customer_text)
+    confirmation_detected = _contains_any(transcript.lower(), CONFIRMATION_PHRASES)
+    sentiment = analyze_customer_sentiment_agent(
+        customer_text,
+        segments,
+        {
+            "resolutionStatus": resolution["status"],
+            "miscommunicationDetected": miscommunication["detected"],
+            "repeatedIssueCount": repeated_issue_count,
+            "confirmationDetected": confirmation_detected,
+        },
+    )
     satisfaction = _predict_satisfaction(transcript, sentiment, empathy, base_score, miscommunication, resolution)
     skill_gaps = _build_skill_gaps(transcript, empathy, base_score, miscommunication, resolution)
     strengths = _build_strengths(transcript, base_score, empathy)
@@ -114,7 +127,7 @@ def _build_local_evaluation(transcript, segments, call_payload):
         "callSummary": {
             "customerIssue": _customer_issue_label(customer_request, transcript),
             "resolutionStatus": resolution["status"],
-            "customerEmotion": extract_customer_emotion(segments),
+            "customerEmotion": sentiment.get("emotion") or extract_customer_emotion(segments),
             "agentCommunication": _agent_communication_label(base_score, empathy),
             "miscommunication": miscommunication["summary"],
             "strengths": strengths,
@@ -130,8 +143,8 @@ def _build_local_evaluation(transcript, segments, call_payload):
             "durationSeconds": duration,
             "talkTurns": len(segments),
             "interruptionCount": count_interruptions(transcript),
-            "customerRepeatedIssueCount": estimate_repeated_issue_count(_customer_text(segments, transcript)),
-            "confirmationDetected": _contains_any(transcript.lower(), CONFIRMATION_PHRASES),
+            "customerRepeatedIssueCount": repeated_issue_count,
+            "confirmationDetected": confirmation_detected,
         },
     }
 

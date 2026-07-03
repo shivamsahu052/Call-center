@@ -132,8 +132,10 @@ HINGLISH_SPELLING_FIXES = {
     "roopo": "rukiye",
     "sara": "sir",
     "sakaate": "sakte",
+    "sakate": "sakte",
     "takaa": "tak",
     "taka": "tak",
+    "theeka": "theek",
     "thaa": "tha",
 }
 

@@ -15,20 +15,31 @@ const candidates =
         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
         process.env.LOCALAPPDATA &&
           `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`,
-      ]
-    : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']
+      ].map((command) => command && { command, args: [url] })
+    : process.platform === 'darwin'
+      ? [{ command: 'open', args: ['-a', 'Google Chrome', url] }]
+      : [
+          { command: 'google-chrome', args: [url] },
+          { command: 'google-chrome-stable', args: [url] },
+          { command: 'chromium', args: [url] },
+          { command: 'chromium-browser', args: [url] },
+        ]
 
-const chrome = candidates.filter(Boolean).find((candidate) => {
-  return process.platform !== 'win32' || existsSync(candidate)
+const chrome = candidates.filter(Boolean).find(({ command }) => {
+  return process.platform !== 'win32' || existsSync(command)
 })
 
 if (!chrome) {
   process.exit(0)
 }
 
-const child = spawn(chrome, [url], {
+const child = spawn(chrome.command, chrome.args, {
   detached: true,
   stdio: 'ignore',
+})
+
+child.on('error', () => {
+  process.exit(0)
 })
 
 child.unref()

@@ -20,7 +20,7 @@ def remove_noise(audio_path):
 
 
 def enhance_voice(audio_path):
-    """Apply simple echo reduction, speech-band emphasis, and loudness normalization."""
+    """Apply speech-band emphasis and loudness normalization."""
     source_path = Path(audio_path)
     samples, sample_rate = sf.read(source_path, always_2d=False)
     samples = _to_mono_float(samples)
@@ -28,12 +28,26 @@ def enhance_voice(audio_path):
     if samples.size == 0:
         return str(source_path)
 
-    enhanced = _reduce_short_echo(samples, sample_rate)
-    enhanced = _emphasize_speech_band(enhanced, sample_rate)
+    enhanced = _emphasize_speech_band(samples, sample_rate)
     enhanced = _normalize_peak(enhanced)
 
     output_path = source_path.with_name(f"{source_path.stem}.enhanced.wav")
     sf.write(output_path, enhanced, sample_rate, subtype="PCM_16")
+    return str(output_path)
+
+
+def remove_echo(audio_path):
+    """Reduce short room/system echo before voice enhancement."""
+    source_path = Path(audio_path)
+    samples, sample_rate = sf.read(source_path, always_2d=False)
+    samples = _to_mono_float(samples)
+
+    if samples.size == 0:
+        return str(source_path)
+
+    reduced = _reduce_short_echo(samples, sample_rate)
+    output_path = source_path.with_name(f"{source_path.stem}.echo-reduced.wav")
+    sf.write(output_path, reduced, sample_rate, subtype="PCM_16")
     return str(output_path)
 
 

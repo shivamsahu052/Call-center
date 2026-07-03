@@ -1,0 +1,19 @@
+Agent (00:00 - 00:11): Hello, sir. Hello. Hello, sir. Good morning. Thank you for calling Tech Care Laptop Support. My name is Shivam Sauk. How can I help you today? Hello. My name is Manoj.
+
+Customer (00:11 - 00:17): I have a problem with hanging and overheating in my laptop. That's why I called for service.
+
+Agent (00:18 - 00:21): Sir, can you tell me your registered mobile number?
+
+Customer (00:22 - 00:22): Yes, wait a minute.
+
+Customer (00:30 - 00:30): 9876543210
+
+Agent (00:30 - 00:40): Thank you, sir. I have checked your details. Your laptop is in warranty. I will register a service request for you. Sir, when will the engineer come?
+
+Agent (00:48 - 00:49): You will get the information via email.
+
+Customer (00:50 - 00:52): Okay sir. Thank you.
+
+Agent (00:53 - 01:00): You are welcome sir. Your service ticket has been successfully created. Thank you for calling TechCare Laptop Support. Have a great day.
+
+Customer (01:00 - 01:01): Thank you sir. Good bye.

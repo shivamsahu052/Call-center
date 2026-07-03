@@ -11,6 +11,7 @@ try:
     from ..database.mongo import calls_collection
     from ..preprocessing.convert_audio import prepare_audio_for_transcription
     from ..preprocessing.remove_noise import enhance_voice
+    from ..preprocessing.remove_noise import remove_echo
     from ..preprocessing.remove_noise import remove_noise
     from ..preprocessing.remove_silence import remove_silence
     from ..stt.romanize import romanize_text
@@ -19,6 +20,7 @@ except ImportError:
     from database.mongo import calls_collection
     from preprocessing.convert_audio import prepare_audio_for_transcription
     from preprocessing.remove_noise import enhance_voice
+    from preprocessing.remove_noise import remove_echo
     from preprocessing.remove_noise import remove_noise
     from preprocessing.remove_silence import remove_silence
     from stt.romanize import romanize_text
@@ -196,7 +198,8 @@ async def upload_audio_for_transcription(
     try:
         prepared_path = prepare_audio_for_transcription(saved_path)
         cleaned_path = remove_noise(prepared_path)
-        enhanced_path = enhance_voice(cleaned_path)
+        echo_reduced_path = remove_echo(cleaned_path)
+        enhanced_path = enhance_voice(echo_reduced_path)
         final_audio_path = remove_silence(enhanced_path)
         result = _transcribe_audio(final_audio_path, language=language)
         result = _apply_output_language(result, outputLanguage)

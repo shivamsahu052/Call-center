@@ -121,13 +121,11 @@ def add_speaker_labels(segments, audio_path=None):
         return []
 
     if any(segment.get("speaker") for segment in segments):
-        return _merge_adjacent_segments(
-            _apply_clear_role_names([_normalize_existing_speaker(segment) for segment in segments])
-        )
+        return _finalize_speaker_segments(segments)
 
     diarized_segments = _label_with_pyannote(segments, audio_path)
     if diarized_segments:
-        return _merge_adjacent_segments(_apply_clear_role_names(diarized_segments))
+        return _finalize_speaker_segments(diarized_segments)
 
     segments = _split_likely_role_changes(segments)
     current_role = "agent"
@@ -171,7 +169,7 @@ def add_speaker_labels(segments, audio_path=None):
 
         labeled_segments.append({**segment, "speaker": ROLE_SPEAKERS[current_role]})
 
-    return _merge_adjacent_segments(labeled_segments)
+    return _finalize_speaker_segments(labeled_segments)
 
 
 def diarize_audio(audio_path):
@@ -229,7 +227,7 @@ def apply_speaker_turns(segments, speaker_turns):
         }
         for segment in segments
     ]
-    return _merge_adjacent_segments(_apply_clear_role_names(diarized_segments))
+    return _finalize_speaker_segments(diarized_segments)
 
 
 def _label_with_pyannote(segments, audio_path):
@@ -251,7 +249,14 @@ def label_inferred_call_roles(segments):
     if not segments:
         return []
 
-    return _merge_adjacent_segments(_apply_clear_role_names(segments))
+    return _finalize_speaker_segments(segments)
+
+
+def _finalize_speaker_segments(segments):
+    split_segments = _split_likely_role_changes(
+        [_normalize_existing_speaker(segment) for segment in segments]
+    )
+    return _merge_adjacent_segments(_apply_clear_role_names(split_segments))
 
 
 def _best_speaker_for_segment(segment, speaker_turns):
@@ -519,8 +524,10 @@ def _sentence_parts(text):
     import re
 
     text = str(text or "").strip()
+    text = re.sub(r"(\btoday\?\s+)(Hello\.?\s+mera\b)", r"\1\2", text, flags=re.IGNORECASE)
     text = re.sub(r"(\b\d{6,}\b)\s+(Thank you sir\b)", r"\1. \2", text, flags=re.IGNORECASE)
     text = re.sub(r"\s+(Engineer kab\b)", r". \1", text, flags=re.IGNORECASE)
+    text = re.sub(r"(\baayega sir\?\s+)(Sir,\s+\d)", r"\1\2", text, flags=re.IGNORECASE)
 
     return [
         part.strip()
