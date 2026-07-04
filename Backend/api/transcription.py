@@ -4,11 +4,11 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 try:
     from ..analysis.coaching import evaluate_call
-    from ..database.mongo import calls_collection
+    from ..database.mongo import calls_collection, users_collection
     from ..preprocessing.convert_audio import prepare_audio_for_transcription
     from ..preprocessing.remove_noise import enhance_voice
     from ..preprocessing.remove_noise import remove_echo
@@ -17,7 +17,7 @@ try:
     from ..stt.romanize import romanize_text
 except ImportError:
     from analysis.coaching import evaluate_call
-    from database.mongo import calls_collection
+    from database.mongo import calls_collection, users_collection
     from preprocessing.convert_audio import prepare_audio_for_transcription
     from preprocessing.remove_noise import enhance_voice
     from preprocessing.remove_noise import remove_echo
@@ -42,6 +42,21 @@ SUPPORTED_EXTENSIONS = {
     ".wav",
     ".webm",
 }
+
+
+def request_user(request: Request):
+    employee_id = (request.headers.get("X-User-Employee-Id") or "").strip()
+    role = (request.headers.get("X-User-Role") or "").strip()
+
+    if not employee_id or role not in {"Manager", "Employee"}:
+        raise HTTPException(status_code=401, detail="User identity is required.")
+
+    user = users_collection.find_one({"employeeId": employee_id}, {"passwordHash": 0})
+
+    if not user or user.get("role") != role:
+        raise HTTPException(status_code=403, detail="User role could not be verified.")
+
+    return user
 
 def _safe_filename(filename):
     clean_name = Path(filename or "call-audio").name
@@ -163,12 +178,24 @@ def _apply_output_language(result, output_language):
 
 @router.post("/upload")
 async def upload_audio_for_transcription(
+    request: Request,
     file: UploadFile = File(...),
     language: str = Form("auto"),
     outputLanguage: str = Form("original"),
     employeeId: str = Form("UNASSIGNED"),
     employeeName: str = Form("Unknown Employee"),
 ):
+    user = request_user(request)
+
+    if user["role"] == "Manager":
+        raise HTTPException(status_code=403, detail="Managers cannot upload or transcribe calls.")
+
+    if employeeId.strip() and employeeId.strip() != user["employeeId"]:
+        raise HTTPException(status_code=403, detail="Employees can only transcribe calls for themselves.")
+
+    employeeId = user["employeeId"]
+    employeeName = user.get("fullName") or employeeName
+
     _validate_audio_file(file)
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 

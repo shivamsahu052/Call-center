@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { API_BASE_URL } from '../config/api.js'
+import { API_BASE_URL, authHeaders } from '../config/api.js'
 
 function Dashboard({ currentUser, onOpenCall, onStartUpload, focusSection = '', refreshKey }) {
   const [dashboard, setDashboard] = useState(null)
@@ -19,7 +19,9 @@ function Dashboard({ currentUser, onOpenCall, onStartUpload, focusSection = '', 
         const dashboardPath = isManager
           ? '/api/dashboard/manager'
           : `/api/dashboard/employee/${encodeURIComponent(currentUser.employeeId)}`
-        const response = await fetch(`${API_BASE_URL}${dashboardPath}`)
+        const response = await fetch(`${API_BASE_URL}${dashboardPath}`, {
+          headers: authHeaders(currentUser),
+        })
         const payload = await response.json()
 
         if (!response.ok) {
@@ -59,9 +61,11 @@ function Dashboard({ currentUser, onOpenCall, onStartUpload, focusSection = '', 
       <section className="empty-dashboard">
         <h2>Dashboard unavailable</h2>
         <p>{message}</p>
-        <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
-          Upload Call
-        </button>
+        {!isManager ? (
+          <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
+            Upload Call
+          </button>
+        ) : null}
       </section>
     )
   }
@@ -70,16 +74,22 @@ function Dashboard({ currentUser, onOpenCall, onStartUpload, focusSection = '', 
     return (
       <section className="empty-dashboard">
         <h2>No evaluated calls yet</h2>
-        <p>Upload a recorded call to generate transcripts, coaching, skill gaps, leaderboards, and reports.</p>
-        <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
-          Upload Call
-        </button>
+        <p>
+          {isManager
+            ? 'Employee calls will appear here after team members upload and evaluate their conversations.'
+            : 'Upload a recorded call to generate transcripts, coaching, skill gaps, leaderboards, and reports.'}
+        </p>
+        {!isManager ? (
+          <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
+            Upload Call
+          </button>
+        ) : null}
       </section>
     )
   }
 
   return (
-    <DashboardHome
+    <DashboardSurface
       currentUser={currentUser}
       dashboard={dashboard}
       calls={calls}
@@ -103,7 +113,9 @@ export function LeaderboardView({ currentUser, refreshKey }) {
       setMessage('')
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/dashboard/manager`)
+        const response = await fetch(`${API_BASE_URL}/api/leaderboard`, {
+          headers: authHeaders(currentUser),
+        })
         const payload = await response.json()
 
         if (!response.ok) {
@@ -111,7 +123,7 @@ export function LeaderboardView({ currentUser, refreshKey }) {
         }
 
         if (isMounted) {
-          setDashboard(payload.dashboard)
+          setDashboard({ employees: payload.leaderboard || [] })
         }
       } catch (error) {
         if (isMounted) {
@@ -144,7 +156,7 @@ export function LeaderboardView({ currentUser, refreshKey }) {
     )
   }
 
-  const employees = dashboard?.employees?.length ? dashboard.employees : dashboard?.leaderboard || []
+  const employees = dashboard?.employees || []
   const podium = employees.slice(0, 3)
 
   return (
@@ -175,7 +187,33 @@ export function LeaderboardView({ currentUser, refreshKey }) {
   )
 }
 
-function DashboardHome({ currentUser, dashboard, calls, focusSection, onOpenCall, onStartUpload }) {
+function DashboardSurface({ currentUser, dashboard, calls, focusSection, onOpenCall, onStartUpload }) {
+  if (currentUser.role === 'Manager') {
+    return (
+      <ManagerDashboardSurface
+        currentUser={currentUser}
+        dashboard={dashboard}
+        calls={calls || dashboard.recentCalls || []}
+        focusSection={focusSection}
+        onOpenCall={onOpenCall}
+        onStartUpload={onStartUpload}
+      />
+    )
+  }
+
+  return (
+    <EmployeeDashboardSurface
+      currentUser={currentUser}
+      dashboard={dashboard}
+      calls={calls}
+      focusSection={focusSection}
+      onOpenCall={onOpenCall}
+      onStartUpload={onStartUpload}
+    />
+  )
+}
+
+function EmployeeDashboardSurface({ currentUser, dashboard, calls, focusSection, onOpenCall, onStartUpload }) {
   const employee = normalizeEmployeeDashboard(currentUser, dashboard, calls)
   const leaderboard = dashboard.leaderboard || dashboard.employees || []
 
@@ -271,6 +309,427 @@ function DashboardHome({ currentUser, dashboard, calls, focusSection, onOpenCall
   )
 }
 
+function ManagerDashboardSurface({ currentUser, dashboard, calls, focusSection, onOpenCall, onStartUpload }) {
+  const employees = dashboard.employees || dashboard.leaderboard || []
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
+  const selectedEmployee = employees.find((item) => item.employeeId === selectedEmployeeId) || null
+  const selectedCalls = selectedEmployee
+    ? calls.filter((call) => call.employeeId === selectedEmployee.employeeId)
+    : []
+  const selectedModel = selectedEmployee
+    ? normalizeManagedEmployee(selectedEmployee, selectedCalls, dashboard)
+    : null
+
+  if (focusSection) {
+    return (
+      <ManagerFocusedSection
+        focusSection={focusSection}
+        currentUser={currentUser}
+        dashboard={dashboard}
+        employees={employees}
+        calls={calls}
+        selectedEmployee={selectedModel}
+        selectedEmployeeId={selectedEmployeeId}
+        onSelectEmployee={setSelectedEmployeeId}
+        onOpenCall={onOpenCall}
+        onStartUpload={onStartUpload}
+      />
+    )
+  }
+
+  const metrics = [
+    {
+      label: 'Team Score',
+      value: `${toTenPointScore(dashboard.overallPerformance)}/10`,
+      detail: `${formatGrowth(dashboard.thisWeekGrowth)} this week`,
+      tone: 'blue',
+    },
+    {
+      label: 'Employees',
+      value: String(employees.length),
+      detail: 'With evaluated calls',
+      tone: 'green',
+    },
+    {
+      label: 'Team Calls',
+      value: String(dashboard.totalCalls || calls.length),
+      detail: 'Available to review',
+      tone: 'purple',
+    },
+    {
+      label: 'Avg. CSAT',
+      value: `${toTenPointScore(average(employees.map((employee) => employee.averageSatisfaction || 0)))}/10`,
+      detail: 'Predicted satisfaction',
+      tone: 'amber',
+    },
+  ]
+
+  return (
+    <section className="manager-dashboard-page" aria-label="Manager dashboard overview">
+      <section className="manager-hero-panel">
+        <div>
+          <p className="eyebrow">Manager command center</p>
+          <h2>Choose an employee to review</h2>
+          <p className="detail-subtitle">
+            Select one employee first. Calls, scripts, strengths, weaknesses, feedback, and progress stay hidden until then.
+          </p>
+        </div>
+      </section>
+
+      <div className="dashboard-metric-grid">
+        {metrics.map((metric) => (
+          <MetricCard key={metric.label} {...metric} />
+        ))}
+      </div>
+
+      <section className="manager-workbench">
+        <ManagerEmployeePicker
+          employees={employees}
+          selectedEmployeeId={selectedEmployeeId}
+          onSelectEmployee={setSelectedEmployeeId}
+          meta="Select before viewing data"
+        />
+
+        <section className="manager-detail-stack">
+          {selectedModel ? (
+            <>
+              <EmployeeAccessPanel employee={selectedModel} calls={selectedCalls} onOpenCall={onOpenCall} />
+              <div className="manager-insight-grid">
+                <section className="dashboard-panel">
+                  <PanelHeader title="Strengths" meta="Repeated positive signals" />
+                  <MarkedList items={selectedModel.strengths} mark="check" />
+                </section>
+                <section className="dashboard-panel">
+                  <PanelHeader title="Weaknesses" meta="Coaching risks to address" />
+                  <MarkedList items={selectedModel.weaknesses} mark="cross" />
+                </section>
+              </div>
+              <section className="dashboard-panel">
+                <PanelHeader title="Manager Feedback" meta="AI coaching summary" />
+                <p className="coach-note">{selectedModel.aiCoach}</p>
+                <MarkedList items={selectedModel.recommendedLearning} mark="dot" />
+              </section>
+            </>
+          ) : (
+            <ManagerSelectionPrompt hasEmployees={Boolean(employees.length)} />
+          )}
+        </section>
+      </section>
+    </section>
+  )
+}
+
+function ManagerEmployeePicker({ employees, selectedEmployeeId, onSelectEmployee, meta = 'Select to inspect' }) {
+  return (
+    <aside className="dashboard-panel manager-roster-panel">
+      <PanelHeader title="Employees" meta={meta} />
+      <div className="manager-employee-list">
+        {employees.map((employee, index) => (
+          <button
+            className={employee.employeeId === selectedEmployeeId ? 'manager-employee-card active' : 'manager-employee-card'}
+            type="button"
+            key={employee.employeeId || employee.fullName || index}
+            onClick={() => onSelectEmployee(employee.employeeId)}
+          >
+            <span className="podium-avatar">{initials(employee.fullName)}</span>
+            <strong>{employee.fullName || 'Employee'}</strong>
+            <small>{employee.employeeId}</small>
+            <b>{toTenPointScore(employee.overallPerformance)}</b>
+          </button>
+        ))}
+        {!employees.length ? <p className="quiet-text">No approved employees available yet.</p> : null}
+      </div>
+    </aside>
+  )
+}
+
+function ManagerSelectionPrompt({ hasEmployees }) {
+  return (
+    <section className="dashboard-panel manager-selection-prompt">
+      <p className="eyebrow">Employee required</p>
+      <h2>{hasEmployees ? 'Select an employee first' : 'No approved employees yet'}</h2>
+      <p className="detail-subtitle">
+        {hasEmployees
+          ? 'After you choose an employee, their calls, scripts, strengths, weaknesses, feedback, and progress graph will appear here.'
+          : 'Approved employees with evaluated calls will appear here for manager review.'}
+      </p>
+    </section>
+  )
+}
+
+function ManagerFocusedSection({
+  focusSection,
+  currentUser,
+  dashboard,
+  employees,
+  calls,
+  selectedEmployee,
+  selectedEmployeeId,
+  onSelectEmployee,
+  onOpenCall,
+  onStartUpload,
+}) {
+  const selectedCalls = selectedEmployee
+    ? calls.filter((call) => call.employeeId === selectedEmployee.employeeId)
+    : []
+
+  if (focusSection === 'calls') {
+    return (
+      <ManagerScopedPage
+        title="Employee Calls"
+        subtitle="Choose an employee before opening calls."
+        employees={employees}
+        selectedEmployeeId={selectedEmployeeId}
+        selectedEmployee={selectedEmployee}
+        onSelectEmployee={onSelectEmployee}
+      >
+        <CallsPage calls={selectedCalls} onOpenCall={onOpenCall} onStartUpload={onStartUpload} title={`${selectedEmployee?.fullName || 'Employee'} Calls`} showUpload={false} />
+      </ManagerScopedPage>
+    )
+  }
+
+  if (focusSection === 'transcripts') {
+    return (
+      <ManagerScopedPage
+        title="Employee Transcripts"
+        subtitle="Choose an employee before opening scripts."
+        employees={employees}
+        selectedEmployeeId={selectedEmployeeId}
+        selectedEmployee={selectedEmployee}
+        onSelectEmployee={onSelectEmployee}
+      >
+        <TranscriptExplorer currentUser={currentUser} calls={selectedCalls} onOpenCall={onOpenCall} />
+      </ManagerScopedPage>
+    )
+  }
+
+  if (focusSection === 'performance') {
+    return (
+      <ManagerScopedPage
+        title="Employee Performance"
+        subtitle="Choose an employee before viewing the progress graph."
+        employees={employees}
+        selectedEmployeeId={selectedEmployeeId}
+        selectedEmployee={selectedEmployee}
+        onSelectEmployee={onSelectEmployee}
+      >
+        <ManagerEmployeePerformancePage employee={selectedEmployee} calls={selectedCalls} />
+      </ManagerScopedPage>
+    )
+  }
+
+  if (focusSection === 'reports') {
+    return (
+      <ManagerScopedPage
+        title="Employee Reports"
+        subtitle="Choose an employee before viewing reports."
+        employees={employees}
+        selectedEmployeeId={selectedEmployeeId}
+        selectedEmployee={selectedEmployee}
+        onSelectEmployee={onSelectEmployee}
+      >
+        <ManagerEmployeeReportsPage employee={selectedEmployee} calls={selectedCalls} />
+      </ManagerScopedPage>
+    )
+  }
+
+  if (focusSection === 'training') {
+    return (
+      <ManagerScopedPage
+        title="Employee Training"
+        subtitle="Choose an employee before viewing coaching priorities."
+        employees={employees}
+        selectedEmployeeId={selectedEmployeeId}
+        selectedEmployee={selectedEmployee}
+        onSelectEmployee={onSelectEmployee}
+      >
+        <ManagerEmployeeTrainingPage employee={selectedEmployee} />
+      </ManagerScopedPage>
+    )
+  }
+
+  if (focusSection === 'coach') {
+    return (
+      <ManagerCoachPage
+        employees={employees}
+        selectedEmployee={selectedEmployee}
+        selectedEmployeeId={selectedEmployeeId}
+        selectedCalls={selectedCalls}
+        onSelectEmployee={onSelectEmployee}
+        onOpenCall={onOpenCall}
+      />
+    )
+  }
+
+  return <ManagerDashboardSurface currentUser={currentUser} dashboard={dashboard} calls={calls} onOpenCall={onOpenCall} onStartUpload={onStartUpload} />
+}
+
+function ManagerScopedPage({ title, subtitle, employees, selectedEmployeeId, selectedEmployee, onSelectEmployee, children }) {
+  return (
+    <section className="manager-dashboard-page" aria-label={title}>
+      <section className="dashboard-panel page-hero-panel">
+        <div>
+          <p className="eyebrow">Manager review</p>
+          <h2>{title}</h2>
+          <p className="detail-subtitle">{subtitle}</p>
+        </div>
+      </section>
+
+      <section className="manager-workbench">
+        <ManagerEmployeePicker
+          employees={employees}
+          selectedEmployeeId={selectedEmployeeId}
+          onSelectEmployee={onSelectEmployee}
+          meta="Required selection"
+        />
+        <section className="manager-detail-stack">
+          {selectedEmployee ? children : <ManagerSelectionPrompt hasEmployees={Boolean(employees.length)} />}
+        </section>
+      </section>
+    </section>
+  )
+}
+
+function EmployeeAccessPanel({ employee, calls, onOpenCall }) {
+  return (
+    <section className="dashboard-panel employee-access-panel">
+      <div className="employee-access-header">
+        <div>
+          <p className="eyebrow">Employee access</p>
+          <h2>{employee.fullName}</h2>
+          <p className="detail-subtitle">{employee.employeeId} / {employee.totalCalls} reviewed calls</p>
+        </div>
+        <ScoreRing value={employee.overallRaw} label="Score" />
+      </div>
+      <div className="summary-grid manager-summary-grid">
+        <SummaryItem label="Overall" value={`${employee.overallScore}/10`} />
+        <SummaryItem label="CSAT" value={`${employee.customerSatisfaction}/10`} />
+        <SummaryItem label="Last Call" value={formatDate(employee.lastCallAt)} />
+        <SummaryItem label="Focus Area" value={employee.skillGaps[0]?.name || 'No gaps'} />
+      </div>
+      <div className="dashboard-overview-grid manager-access-grid">
+        <section>
+          <h3>Skill Health</h3>
+          <SkillBars skills={employee.skillGaps} />
+        </section>
+        <section>
+          <h3>Scripts</h3>
+          <div className="manager-script-list">
+            {calls.slice(0, 4).map((call) => (
+              <button className="home-call-row" type="button" key={call.id} onClick={() => onOpenCall(call.id)}>
+                <span>
+                  <strong>{call.filename || call.summary?.customerIssue || 'Recorded call'}</strong>
+                  <small>{formatDate(call.createdAt)}</small>
+                </span>
+                <b>{toTenPointScore(call.evaluation?.metrics?.overallScore || 0)}</b>
+              </button>
+            ))}
+            {!calls.length ? <p className="quiet-text">No scripts available for this employee.</p> : null}
+          </div>
+        </section>
+      </div>
+    </section>
+  )
+}
+
+function ManagerCoachPage({ employees, selectedEmployee, selectedEmployeeId, selectedCalls, onSelectEmployee, onOpenCall }) {
+  return (
+    <section className="manager-dashboard-page" aria-label="Manager coaching">
+      <section className="dashboard-panel page-hero-panel">
+        <div>
+          <p className="eyebrow">AI Coach</p>
+          <h2>Employee feedback review</h2>
+          <p className="detail-subtitle">Select any employee to inspect strengths, weaknesses, feedback, and scripts.</p>
+        </div>
+      </section>
+      <section className="manager-workbench">
+        <ManagerEmployeePicker
+          employees={employees}
+          selectedEmployeeId={selectedEmployeeId}
+          onSelectEmployee={onSelectEmployee}
+          meta="Required selection"
+        />
+        <section className="manager-detail-stack">
+          {selectedEmployee ? (
+            <>
+              <EmployeeAccessPanel employee={selectedEmployee} calls={selectedCalls} onOpenCall={onOpenCall} />
+              <div className="manager-insight-grid">
+                <section className="dashboard-panel">
+                  <PanelHeader title="Strengths" meta="What to reinforce" />
+                  <MarkedList items={selectedEmployee.strengths} mark="check" />
+                </section>
+                <section className="dashboard-panel">
+                  <PanelHeader title="Weaknesses" meta="What to coach next" />
+                  <MarkedList items={selectedEmployee.weaknesses} mark="cross" />
+                </section>
+              </div>
+            </>
+          ) : (
+            <ManagerSelectionPrompt hasEmployees={Boolean(employees.length)} />
+          )}
+        </section>
+      </section>
+    </section>
+  )
+}
+
+function ManagerEmployeePerformancePage({ employee, calls }) {
+  return (
+    <section className="performance-page manager-scoped-content" aria-label="Employee performance">
+      <div className="dashboard-overview-grid">
+        <section className="dashboard-panel">
+          <PanelHeader title={`${employee.fullName} Progress`} meta={`${calls.length} reviewed calls`} />
+          <TrendLineChart trend={employee.trend} tall />
+        </section>
+        <section className="dashboard-panel">
+          <PanelHeader title="Skill Gaps" meta="Lowest averages first" />
+          <SkillBars skills={employee.skillGaps} />
+        </section>
+      </div>
+    </section>
+  )
+}
+
+function ManagerEmployeeReportsPage({ employee, calls }) {
+  const metrics = [
+    { label: 'Average Score', value: `${employee.overallScore}/10`, detail: employee.fullName },
+    { label: 'Total Calls', value: String(calls.length), detail: 'Reviewed' },
+    { label: 'CSAT', value: `${employee.customerSatisfaction}/10`, detail: 'Predicted' },
+    { label: 'Focus Area', value: employee.skillGaps[0]?.name || 'No gaps', detail: 'Lowest skill' },
+  ]
+
+  return (
+    <section className="reports-page manager-scoped-content" aria-label="Employee reports">
+      <div className="report-metric-grid">
+        {metrics.map((metric) => (
+          <MetricCard key={metric.label} {...metric} tone="blue" />
+        ))}
+      </div>
+      <section className="dashboard-panel">
+        <PanelHeader title={`${employee.fullName} Call Report`} meta="Latest calls for selected employee" />
+        <CallTable calls={calls} onOpenCall={() => {}} passive />
+      </section>
+    </section>
+  )
+}
+
+function ManagerEmployeeTrainingPage({ employee }) {
+  return (
+    <section className="training-page manager-scoped-content" aria-label="Employee training">
+      <div className="dashboard-overview-grid">
+        <section className="dashboard-panel">
+          <PanelHeader title={`${employee.fullName} Recommended Learning`} meta="Selected employee only" />
+          <MarkedList items={employee.recommendedLearning} mark="dot" />
+        </section>
+        <section className="dashboard-panel">
+          <PanelHeader title="Weaknesses To Coach" meta="Selected employee only" />
+          <MarkedList items={employee.weaknesses} mark="cross" />
+        </section>
+      </div>
+    </section>
+  )
+}
+
 function FocusedDashboardSection({
   focusSection,
   employee,
@@ -286,7 +745,7 @@ function FocusedDashboardSection({
   }
 
   if (focusSection === 'transcripts') {
-    return <TranscriptExplorer calls={calls || dashboard.recentCalls || []} onOpenCall={onOpenCall} />
+    return <TranscriptExplorer currentUser={currentUser} calls={calls || dashboard.recentCalls || []} onOpenCall={onOpenCall} />
   }
 
   if (focusSection === 'coach') {
@@ -325,18 +784,20 @@ function FocusedDashboardSection({
   )
 }
 
-function CallsPage({ calls, onOpenCall, onStartUpload }) {
+function CallsPage({ calls, onOpenCall, onStartUpload, title = 'My Calls', showUpload = true }) {
   return (
-    <section className="calls-page" aria-label="My calls">
+    <section className="calls-page" aria-label={title}>
       <section className="dashboard-panel page-hero-panel">
         <div>
-          <p className="eyebrow">My Calls</p>
+          <p className="eyebrow">{title}</p>
           <h2>Reviewed conversations</h2>
           <p className="detail-subtitle">Open any call to view transcript, sentiment, coaching, and skill gaps.</p>
         </div>
-        <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
-          Upload Call
-        </button>
+        {showUpload ? (
+          <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
+            Upload Call
+          </button>
+        ) : null}
       </section>
       <section className="dashboard-panel">
         <CallTable calls={calls} onOpenCall={onOpenCall} />
@@ -345,7 +806,7 @@ function CallsPage({ calls, onOpenCall, onStartUpload }) {
   )
 }
 
-function TranscriptExplorer({ calls, onOpenCall }) {
+function TranscriptExplorer({ currentUser, calls, onOpenCall }) {
   const [selectedId, setSelectedId] = useState(calls[0]?.id || '')
   const [selectedCall, setSelectedCall] = useState(null)
   const [isLoading, setIsLoading] = useState(Boolean(calls[0]?.id))
@@ -372,7 +833,9 @@ function TranscriptExplorer({ calls, onOpenCall }) {
       setMessage('')
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/calls/${encodeURIComponent(selectedId)}`)
+        const response = await fetch(`${API_BASE_URL}/api/calls/${encodeURIComponent(selectedId)}`, {
+          headers: authHeaders(currentUser),
+        })
         const payload = await response.json()
 
         if (!response.ok) {
@@ -1020,6 +1483,102 @@ function normalizeEmployeeDashboard(currentUser, dashboard, calls) {
       { name: 'Problem Solving', score: problemSolvingScore },
     ],
   }
+}
+
+function normalizeManagedEmployee(employee, calls, dashboard) {
+  const latestCall = employee.latestCall || calls?.[0] || {}
+  const latestEvaluation = latestCall.evaluation || {}
+  const skillGaps = employee.skillGaps?.length
+    ? employee.skillGaps
+    : aggregateSkillsFromCalls(calls, dashboard.overallPerformance)
+  const overallRaw = employee.overallPerformance || latestEvaluation.metrics?.overallScore || 0
+  const satisfactionScore =
+    employee.averageSatisfaction ||
+    latestEvaluation.predictedSatisfaction?.score ||
+    latestCall.summary?.predictedCustomerSatisfaction ||
+    0
+
+  return {
+    employeeId: employee.employeeId || latestCall.employeeId || 'Unknown',
+    fullName: employee.fullName || latestCall.employeeName || 'Employee',
+    totalCalls: employee.callCount || calls?.length || 0,
+    lastCallAt: employee.lastCallAt || latestCall.createdAt,
+    overallRaw,
+    overallScore: toTenPointScore(overallRaw),
+    customerSatisfaction: toTenPointScore(satisfactionScore),
+    strengths:
+      employee.strengths ||
+      latestEvaluation.coachingReport?.strengths ||
+      aggregateCoachingItems(calls, 'strengths') ||
+      ['No strengths recorded yet'],
+    weaknesses:
+      employee.weaknesses ||
+      latestEvaluation.coachingReport?.weaknesses ||
+      aggregateCoachingItems(calls, 'weaknesses') ||
+      ['No weaknesses recorded yet'],
+    recommendedLearning:
+      employee.recommendedLearning ||
+      latestEvaluation.recommendedLearning ||
+      aggregateRecommendations(calls) ||
+      ['Review evaluated calls to build learning recommendations'],
+    aiCoach:
+      employee.aiCoach ||
+      latestEvaluation.coachingReport?.summary ||
+      'Review this employee with recent scripts, strengths, weaknesses, and skill gaps.',
+    skillGaps,
+    trend: employee.performanceTrend || [],
+  }
+}
+
+function aggregateCoachingItems(calls, key) {
+  const counts = new Map()
+
+  ;(calls || []).forEach((call) => {
+    const items = call.evaluation?.coachingReport?.[key] || []
+    items.forEach((item) => counts.set(item, (counts.get(item) || 0) + 1))
+  })
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([item]) => item)
+    .slice(0, 4)
+}
+
+function aggregateRecommendations(calls) {
+  const counts = new Map()
+
+  ;(calls || []).forEach((call) => {
+    ;(call.evaluation?.recommendedLearning || []).forEach((item) => counts.set(item, (counts.get(item) || 0) + 1))
+  })
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([item]) => item)
+    .slice(0, 4)
+}
+
+function aggregateSkillsFromCalls(calls, fallbackScore = 0) {
+  const scores = new Map()
+
+  ;(calls || []).forEach((call) => {
+    ;(call.evaluation?.skillGapAnalysis?.skills || []).forEach((skill) => {
+      const existing = scores.get(skill.name) || []
+      scores.set(skill.name, [...existing, Number(skill.score) || 0])
+    })
+  })
+
+  const averaged = [...scores.entries()].map(([name, values]) => ({
+    name,
+    score: average(values),
+  }))
+
+  return averaged.length
+    ? averaged
+    : [
+        { name: 'Communication', score: fallbackScore },
+        { name: 'Empathy', score: fallbackScore },
+        { name: 'Problem Solving', score: fallbackScore },
+      ]
 }
 
 function buildCoachReply(question, employee) {

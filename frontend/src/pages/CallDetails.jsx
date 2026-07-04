@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { API_BASE_URL } from '../config/api.js'
+import { API_BASE_URL, authHeaders } from '../config/api.js'
 
-function CallDetails({ callId, onBack }) {
+function CallDetails({ currentUser, callId, onBack }) {
   const [call, setCall] = useState(null)
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(Boolean(callId))
@@ -20,7 +20,9 @@ function CallDetails({ callId, onBack }) {
       setMessage('')
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/calls/${encodeURIComponent(callId)}`)
+        const response = await fetch(`${API_BASE_URL}/api/calls/${encodeURIComponent(callId)}`, {
+          headers: authHeaders(currentUser),
+        })
         const payload = await response.json()
 
         if (!response.ok) {
@@ -46,7 +48,7 @@ function CallDetails({ callId, onBack }) {
     return () => {
       isMounted = false
     }
-  }, [callId])
+  }, [callId, currentUser])
 
   const evaluation = call?.evaluation || {}
   const summary = evaluation.callSummary || {}

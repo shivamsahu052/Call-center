@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { API_BASE_URL } from '../config/api.js'
+import { API_BASE_URL, authHeaders } from '../config/api.js'
 
 const languageOptions = [
   { value: 'auto', label: 'Auto detect / mixed' },
@@ -77,6 +77,12 @@ function CallTranscription({ currentUser, onCallAnalyzed, onOpenCall }) {
   async function handleSubmit(event) {
     event.preventDefault()
 
+    if (currentUser.role === 'Manager') {
+      setMessageType('error')
+      setMessage('Managers can review team calls but cannot upload or transcribe calls.')
+      return
+    }
+
     if (!audioFile) {
       setMessageType('error')
       setMessage('Choose an audio call file first.')
@@ -97,6 +103,7 @@ function CallTranscription({ currentUser, onCallAnalyzed, onOpenCall }) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/transcription/upload`, {
         method: 'POST',
+        headers: authHeaders(currentUser),
         body: formData,
       })
       const payload = await response.json()
@@ -148,6 +155,15 @@ function CallTranscription({ currentUser, onCallAnalyzed, onOpenCall }) {
     anchor.download = `${result.filename || 'call-transcript'}.txt`
     anchor.click()
     URL.revokeObjectURL(url)
+  }
+
+  if (currentUser.role === 'Manager') {
+    return (
+      <section className="empty-dashboard">
+        <h2>Transcription is employee-only</h2>
+        <p>Managers can review team scripts, coaching feedback, strengths, weaknesses, and progress graphs.</p>
+      </section>
+    )
   }
 
   return (

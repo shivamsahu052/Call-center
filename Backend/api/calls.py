@@ -2,7 +2,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 try:
@@ -13,6 +13,29 @@ except ImportError:
     from database.mongo import calls_collection, users_collection
 
 router = APIRouter(prefix="/api", tags=["calls"])
+
+
+def request_user(request: Request):
+    employee_id = (request.headers.get("X-User-Employee-Id") or "").strip()
+    role = (request.headers.get("X-User-Role") or "").strip()
+
+    if not employee_id or role not in {"Manager", "Employee"}:
+        raise HTTPException(status_code=401, detail="User identity is required.")
+
+    user = users_collection.find_one({"employeeId": employee_id}, {"passwordHash": 0})
+
+    if not user or user.get("role") != role:
+        raise HTTPException(status_code=403, detail="User role could not be verified.")
+
+    return user
+
+
+def employee_team_ids():
+    return [
+        user["employeeId"]
+        for user in users_collection.find({"role": "Employee"}, {"employeeId": 1})
+        if user.get("employeeId")
+    ]
 
 
 class SegmentPayload(BaseModel):
@@ -47,16 +70,26 @@ def analyze_structured_conversation(payload: EvaluationRequest):
 
 @router.get("/calls")
 def list_calls(
+    request: Request,
     employeeId: str | None = Query(default=None),
     role: str | None = Query(default=None),
     limit: int = Query(default=30, ge=1, le=100),
 ):
+    user = request_user(request)
     query = {}
 
-    if role != "Manager" and employeeId:
-        query["employeeId"] = employeeId
-    elif role == "Manager" and employeeId:
-        query["employeeId"] = employeeId
+    if user["role"] == "Manager":
+        team_ids = employee_team_ids()
+        if employeeId:
+            if employeeId not in team_ids:
+                raise HTTPException(status_code=403, detail="Managers can only access employee team calls.")
+            query["employeeId"] = employeeId
+        else:
+            query["employeeId"] = {"$in": team_ids}
+    else:
+        if employeeId and employeeId != user["employeeId"]:
+            raise HTTPException(status_code=403, detail="Employees can only access their own calls.")
+        query["employeeId"] = user["employeeId"]
 
     calls = [
         serialize_call(call, include_transcript=False)
@@ -66,7 +99,9 @@ def list_calls(
 
 
 @router.get("/calls/{call_id}")
-def get_call(call_id: str):
+def get_call(call_id: str, request: Request):
+    user = request_user(request)
+
     try:
         object_id = ObjectId(call_id)
     except Exception:
@@ -77,18 +112,51 @@ def get_call(call_id: str):
     if not call:
         raise HTTPException(status_code=404, detail="Call not found.")
 
+    if user["role"] == "Manager":
+        if call.get("employeeId") not in employee_team_ids():
+            raise HTTPException(status_code=403, detail="Managers can only access employee team calls.")
+    elif call.get("employeeId") != user["employeeId"]:
+        raise HTTPException(status_code=403, detail="Employees can only access their own calls.")
+
     return {"ok": True, "call": serialize_call(call, include_transcript=True)}
 
 
 @router.get("/dashboard/manager")
-def manager_dashboard():
-    calls = list(calls_collection.find({}).sort("createdAt", -1).limit(500))
+def manager_dashboard(request: Request):
+    user = request_user(request)
+
+    if user["role"] != "Manager":
+        raise HTTPException(status_code=403, detail="Manager dashboard is restricted to managers.")
+
+    team_ids = employee_team_ids()
+    calls = list(calls_collection.find({"employeeId": {"$in": team_ids}}).sort("createdAt", -1).limit(500))
     users = list(users_collection.find({}, {"passwordHash": 0}))
-    return {"ok": True, "dashboard": build_manager_dashboard(calls, users)}
+    return {
+        "ok": True,
+        "dashboard": build_manager_dashboard(calls, users),
+        "calls": [serialize_call(call, include_transcript=False) for call in calls[:100]],
+    }
+
+
+@router.get("/leaderboard")
+def shared_leaderboard(request: Request):
+    request_user(request)
+    team_ids = employee_team_ids()
+    calls = list(calls_collection.find({"employeeId": {"$in": team_ids}}).sort("createdAt", -1).limit(500))
+    users = list(users_collection.find({"role": "Employee"}, {"passwordHash": 0}))
+    return {"ok": True, "leaderboard": build_leaderboard(calls, users)}
 
 
 @router.get("/dashboard/employee/{employee_id}")
-def employee_dashboard(employee_id: str):
+def employee_dashboard(employee_id: str, request: Request):
+    user = request_user(request)
+
+    if user["role"] == "Employee" and employee_id != user["employeeId"]:
+        raise HTTPException(status_code=403, detail="Employees can only access their own dashboard.")
+
+    if user["role"] == "Manager" and employee_id not in employee_team_ids():
+        raise HTTPException(status_code=403, detail="Managers can only access employee team dashboards.")
+
     calls = list(calls_collection.find({"employeeId": employee_id}).sort("createdAt", -1).limit(200))
     user = users_collection.find_one({"employeeId": employee_id}, {"passwordHash": 0})
     return {
@@ -108,11 +176,19 @@ def build_manager_dashboard(calls, users):
     for employee_id, grouped_calls in employee_calls.items():
         user = next((item for item in users if item.get("employeeId") == employee_id), {})
         summary = summarize_calls(grouped_calls)
+        strengths, weaknesses = strengths_and_weaknesses(grouped_calls)
         employee_cards.append(
             {
                 "employeeId": employee_id,
                 "fullName": user.get("fullName") or grouped_calls[0].get("employeeName") or "Unknown Employee",
                 "role": user.get("role", "Employee"),
+                "strengths": strengths,
+                "weaknesses": weaknesses,
+                "aiCoach": coach_message(grouped_calls),
+                "recommendedLearning": top_recommendations(grouped_calls),
+                "skillGaps": aggregate_skill_gaps(grouped_calls),
+                "performanceTrend": trend_for_calls(grouped_calls),
+                "latestCall": serialize_call(grouped_calls[0], include_transcript=False) if grouped_calls else None,
                 **summary,
             }
         )
@@ -131,6 +207,30 @@ def build_manager_dashboard(calls, users):
         "recentCalls": [serialize_call(call, include_transcript=False) for call in calls[:8]],
         "recommendedLearning": top_recommendations(calls),
     }
+
+
+def build_leaderboard(calls, users):
+    employee_calls = defaultdict(list)
+
+    for call in calls:
+        employee_calls[call.get("employeeId", "Unknown")].append(call)
+
+    rows = []
+    for employee_id, grouped_calls in employee_calls.items():
+        user = next((item for item in users if item.get("employeeId") == employee_id), {})
+        summary = summarize_calls(grouped_calls)
+        rows.append(
+            {
+                "employeeId": employee_id,
+                "fullName": user.get("fullName") or grouped_calls[0].get("employeeName") or "Unknown Employee",
+                "overallPerformance": summary["overallPerformance"],
+                "callCount": summary["callCount"],
+                "lastCallAt": summary["lastCallAt"],
+            }
+        )
+
+    rows.sort(key=lambda item: item["overallPerformance"], reverse=True)
+    return rows
 
 
 def build_employee_dashboard(calls, user):

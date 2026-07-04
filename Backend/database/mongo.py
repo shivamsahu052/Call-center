@@ -14,13 +14,18 @@ db = client[MONGODB_DB]
 
 users_collection = db.users
 pending_collection = db.pending_registrations
+employee_approvals_collection = db.employee_approvals
 password_resets = db.password_resets
 calls_collection = db.calls
 
 
 def ensure_indexes():
     users_collection.create_index("email", unique=True)
+    users_collection.create_index("employeeId", unique=True)
+    users_collection.create_index("managerCode", unique=True, sparse=True)
     pending_collection.create_index("email", unique=True)
+    employee_approvals_collection.create_index("email", unique=True)
+    employee_approvals_collection.create_index([("managerId", 1), ("status", 1)])
     password_resets.create_index("email", unique=True)
     calls_collection.create_index([("employeeId", 1), ("createdAt", -1)])
     calls_collection.create_index([("createdAt", -1)])

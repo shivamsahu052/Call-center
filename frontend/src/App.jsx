@@ -37,6 +37,16 @@ const menuGroups = [
   },
 ]
 
+function visibleNavigationItems(role) {
+  return navigationItems.filter((item) => {
+    if (role === 'Manager') {
+      return item.id !== 'upload'
+    }
+
+    return true
+  })
+}
+
 function AuthScreen() {
   const { currentUser, logout } = useAuth()
 
@@ -90,10 +100,20 @@ function Workspace({ currentUser, onLogout }) {
   }
 
   function openUpload() {
+    if (currentUser.role === 'Manager') {
+      navigateTo('dashboard')
+      return
+    }
+
     navigateTo('upload')
   }
 
   function openPage(view, focus = '') {
+    if (currentUser.role === 'Manager' && view === 'upload') {
+      navigateTo('dashboard')
+      return
+    }
+
     navigateTo(view, focus)
   }
 
@@ -118,6 +138,7 @@ function Workspace({ currentUser, onLogout }) {
     activeView === 'dashboard'
       ? navigationItems.find((item) => item.view === 'dashboard' && item.focus === dashboardFocus)?.id || 'dashboard'
       : navigationItems.find((item) => item.view === activeView)?.id
+  const isManager = currentUser.role === 'Manager'
 
   const pageTitle =
     activeView === 'home'
@@ -137,17 +158,23 @@ function Workspace({ currentUser, onLogout }) {
               : dashboardFocus === 'reports'
                 ? 'Reports'
                 : dashboardFocus === 'calls'
-                  ? 'My Calls'
+                  ? isManager ? 'Team Calls' : 'My Calls'
                   : dashboardFocus === 'performance'
-                    ? 'Performance'
+                    ? isManager ? 'Team Performance' : 'Performance'
                     : dashboardFocus === 'training'
-                      ? 'Training'
+                      ? isManager ? 'Team Training' : 'Training'
                       : currentUser.role === 'Manager'
                         ? 'Manager Dashboard'
                         : 'Employee Dashboard'
 
   const sidebarClassName = isSidebarOpen ? 'workspace-sidebar open' : 'workspace-sidebar'
   const firstName = currentUser.fullName?.split(' ')[0] || currentUser.fullName || 'there'
+  const roleMenuGroups = menuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => visibleNavigationItems(currentUser.role).some((visible) => visible.id === item.id)),
+    }))
+    .filter((group) => group.items.length)
 
   return (
     <main className="workspace-shell">
@@ -173,7 +200,7 @@ function Workspace({ currentUser, onLogout }) {
         </div>
 
         <nav className="sidebar-nav">
-          {menuGroups.map((group) => (
+          {roleMenuGroups.map((group) => (
             <div className="sidebar-menu-group" key={group.title}>
               <span>{group.title}</span>
               {group.items.map((item) => (
@@ -184,7 +211,7 @@ function Workspace({ currentUser, onLogout }) {
                   onClick={() => openNavigation(item)}
                 >
                   <span aria-hidden="true">{item.icon}</span>
-                  <strong>{item.label}</strong>
+                  <strong>{navigationLabel(item, currentUser.role)}</strong>
                 </button>
               ))}
             </div>
@@ -226,8 +253,6 @@ function Workspace({ currentUser, onLogout }) {
         {activeView === 'home' ? (
           <Home
             currentUser={currentUser}
-            onNavigate={openPage}
-            onOpenCall={openCall}
             onStartUpload={openUpload}
             refreshKey={refreshKey}
           />
@@ -248,15 +273,22 @@ function Workspace({ currentUser, onLogout }) {
         ) : null}
 
         {activeView === 'upload' ? (
-          <CallTranscription
-            currentUser={currentUser}
-            onCallAnalyzed={handleCallAnalyzed}
-            onOpenCall={openCall}
-          />
+          currentUser.role === 'Manager' ? (
+            <section className="empty-dashboard">
+              <h2>Transcription is employee-only</h2>
+              <p>Managers can review team calls, coaching, scripts, and progress, but cannot upload or transcribe calls.</p>
+            </section>
+          ) : (
+            <CallTranscription
+              currentUser={currentUser}
+              onCallAnalyzed={handleCallAnalyzed}
+              onOpenCall={openCall}
+            />
+          )
         ) : null}
 
         {activeView === 'details' ? (
-          <CallDetails callId={selectedCallId} onBack={goBack} />
+          <CallDetails currentUser={currentUser} callId={selectedCallId} onBack={goBack} />
         ) : null}
 
         {activeView === 'profile' ? (
@@ -265,6 +297,22 @@ function Workspace({ currentUser, onLogout }) {
       </section>
     </main>
   )
+}
+
+function navigationLabel(item, role) {
+  if (role !== 'Manager') {
+    return item.label
+  }
+
+  const managerLabels = {
+    calls: 'Team Calls',
+    coach: 'Team Coach',
+    performance: 'Team Performance',
+    training: 'Team Training',
+    reports: 'Team Reports',
+  }
+
+  return managerLabels[item.id] || item.label
 }
 
 function HomeReturnBar({ pageTitle, onBack, onGoHome }) {
@@ -301,9 +349,11 @@ function ProfileView({ currentUser, onStartUpload }) {
           <ProfileItem label="Role" value={currentUser.role} />
           <ProfileItem label="Workspace" value="Call Center Evaluation" />
         </div>
-        <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
-          Upload New Call
-        </button>
+        {currentUser.role === 'Manager' ? null : (
+          <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
+            Upload New Call
+          </button>
+        )}
       </article>
     </section>
   )

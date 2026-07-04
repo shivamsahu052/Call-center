@@ -1,58 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { API_BASE_URL } from '../config/api.js'
+import { API_BASE_URL, authHeaders } from '../config/api.js'
 
-const quickLinks = [
-  {
-    title: 'My Calls',
-    label: 'CL',
-    detail: 'Review call history and open full evaluations.',
-    view: 'dashboard',
-    focus: 'calls',
-    tone: 'blue',
-  },
-  {
-    title: 'AI Coach',
-    label: 'AI',
-    detail: 'Ask for guidance based on your latest calls.',
-    view: 'dashboard',
-    focus: 'coach',
-    tone: 'purple',
-  },
-  {
-    title: 'Performance',
-    label: 'PF',
-    detail: 'Track score movement and skill health.',
-    view: 'dashboard',
-    focus: 'performance',
-    tone: 'green',
-  },
-  {
-    title: 'Training',
-    label: 'TR',
-    detail: 'Practice recommended skills and next steps.',
-    view: 'dashboard',
-    focus: 'training',
-    tone: 'amber',
-  },
-  {
-    title: 'Reports',
-    label: 'RP',
-    detail: 'Export call summaries and performance data.',
-    view: 'dashboard',
-    focus: 'reports',
-    tone: 'blue',
-  },
-  {
-    title: 'Leaderboard',
-    label: 'LB',
-    detail: 'Compare ranking with your team.',
-    view: 'leaderboard',
-    focus: '',
-    tone: 'purple',
-  },
-]
-
-function Home({ currentUser, onNavigate, onOpenCall, onStartUpload, refreshKey }) {
+function Home({ currentUser, onStartUpload, refreshKey }) {
   const [dashboard, setDashboard] = useState(null)
   const [calls, setCalls] = useState([])
   const [message, setMessage] = useState('')
@@ -70,7 +19,9 @@ function Home({ currentUser, onNavigate, onOpenCall, onStartUpload, refreshKey }
         const dashboardPath = isManager
           ? '/api/dashboard/manager'
           : `/api/dashboard/employee/${encodeURIComponent(currentUser.employeeId)}`
-        const response = await fetch(`${API_BASE_URL}${dashboardPath}`)
+        const response = await fetch(`${API_BASE_URL}${dashboardPath}`, {
+          headers: authHeaders(currentUser),
+        })
         const payload = await response.json()
 
         if (!response.ok) {
@@ -110,7 +61,7 @@ function Home({ currentUser, onNavigate, onOpenCall, onStartUpload, refreshKey }
 
   return (
     <section className="home-page" aria-label="Home">
-      <section className="home-hero">
+      <section className="home-hero home-hero-simple">
         <div className="home-hero-copy">
           <p className="eyebrow">CALL CENTER AI</p>
           <h2>
@@ -118,35 +69,14 @@ function Home({ currentUser, onNavigate, onOpenCall, onStartUpload, refreshKey }
           </h2>
           <p>{home.summary}</p>
           <div className="home-actions">
-            <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
-              Upload Call
-            </button>
-            <button
-              className="secondary-button compact-action"
-              type="button"
-              onClick={() => onNavigate('dashboard', '')}
-            >
-              Open Dashboard
-            </button>
+            {isManager ? null : (
+              <button className="primary-button compact-action" type="button" onClick={onStartUpload}>
+                Upload Call
+              </button>
+            )}
           </div>
           {message ? <p className="home-inline-message">{message}</p> : null}
         </div>
-
-        <aside className="home-profile-panel" aria-label="Employee profile snapshot">
-          <div className="home-avatar-ring">
-            <div className="home-avatar">{home.initials}</div>
-          </div>
-          <div>
-            <strong>{currentUser.fullName}</strong>
-            <span>{currentUser.role}</span>
-          </div>
-          <div className="home-profile-grid">
-            <ProfileStat label="Employee ID" value={currentUser.employeeId} />
-            <ProfileStat label="Status" value="Online" />
-            <ProfileStat label="Calls" value={home.totalCalls} />
-            <ProfileStat label="Score" value={home.overallScore} />
-          </div>
-        </aside>
       </section>
 
       <section className="home-metric-grid" aria-label="Today summary">
@@ -156,21 +86,6 @@ function Home({ currentUser, onNavigate, onOpenCall, onStartUpload, refreshKey }
             <strong>{metric.value}</strong>
             <small>{metric.detail}</small>
           </article>
-        ))}
-      </section>
-
-      <section className="home-command-grid" aria-label="Navigation shortcuts">
-        {quickLinks.map((item) => (
-          <button
-            className={`home-command-card home-command-${item.tone}`}
-            type="button"
-            key={item.title}
-            onClick={() => onNavigate(item.view, item.focus)}
-          >
-            <span aria-hidden="true">{item.label}</span>
-            <strong>{item.title}</strong>
-            <small>{item.detail}</small>
-          </button>
         ))}
       </section>
 
@@ -200,28 +115,6 @@ function Home({ currentUser, onNavigate, onOpenCall, onStartUpload, refreshKey }
             ))}
           </div>
         </article>
-
-        <article className="dashboard-panel home-recent-panel">
-          <PanelHeader title="Recent Calls" meta="Open a call evaluation" />
-          {home.recentCalls.length ? (
-            <div className="home-call-list">
-              {home.recentCalls.map((call) => (
-                <button className="home-call-row" type="button" key={call.id} onClick={() => onOpenCall(call.id)}>
-                  <span>
-                    <strong>{call.filename || call.summary?.customerIssue || 'Recorded call'}</strong>
-                    <small>{formatDate(call.createdAt)}</small>
-                  </span>
-                  <b>{toTenPointScore(call.evaluation?.metrics?.overallScore || 0)}</b>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="home-empty-state">
-              <strong>No calls yet</strong>
-              <span>Upload a recorded conversation to unlock scoring, transcripts, and coaching.</span>
-            </div>
-          )}
-        </article>
       </section>
     </section>
   )
@@ -234,15 +127,6 @@ function PanelHeader({ title, meta }) {
         <h2>{title}</h2>
         <p className="result-meta">{meta}</p>
       </div>
-    </div>
-  )
-}
-
-function ProfileStat({ label, value }) {
-  return (
-    <div>
-      <span>{label}</span>
-      <strong>{value || 'Not available'}</strong>
     </div>
   )
 }
@@ -419,19 +303,6 @@ function formatGrowth(value) {
   const numeric = Number(value) || 0
   const prefix = numeric > 0 ? '+' : ''
   return `${prefix}${numeric}%`
-}
-
-function formatDate(value) {
-  if (!value) {
-    return 'No date'
-  }
-
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
 }
 
 export default Home

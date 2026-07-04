@@ -1,6 +1,7 @@
 import os
 import random
 import re
+import secrets
 import smtplib
 import ssl
 from datetime import datetime, timedelta
@@ -20,6 +21,7 @@ try:
     from .api.calls import router as calls_router
     from .api.transcription import router as transcription_router
     from .database.mongo import (
+        employee_approvals_collection,
         ensure_indexes,
         pending_collection,
         password_resets,
@@ -29,6 +31,7 @@ except ImportError:
     from api.calls import router as calls_router
     from api.transcription import router as transcription_router
     from database.mongo import ensure_indexes, pending_collection, password_resets, users_collection
+    from database.mongo import employee_approvals_collection
 
 load_dotenv(Path(__file__).with_name('.env'))
 
@@ -110,6 +113,13 @@ def create_employee_id(role: str) -> str:
             return employee_id
 
 
+def create_manager_code() -> str:
+    while True:
+        code = f"MGR-{secrets.token_hex(3).upper()}"
+        if not users_collection.find_one({'managerCode': code}):
+            return code
+
+
 def send_otp_email(to_email: str, otp: str) -> None:
     if not SMTP_HOST or not SMTP_USER or not SMTP_PASSWORD:
         raise HTTPException(
@@ -138,14 +148,46 @@ def send_otp_email(to_email: str, otp: str) -> None:
         raise HTTPException(status_code=500, detail=f'Failed to send OTP email: {exc}')
 
 
+def send_manager_approval_email(manager: dict, approval: dict) -> None:
+    if not SMTP_HOST or not SMTP_USER or not SMTP_PASSWORD:
+        return
+
+    message = EmailMessage()
+    message['Subject'] = 'Employee approval request'
+    message['From'] = SMTP_FROM
+    message['To'] = manager['email']
+    message.set_content(
+        f"{approval['fullName']} ({approval['email']}) requested access to your team.\n\n"
+        "Log in as manager and open Team Approvals to accept or reject this request."
+    )
+
+    context = ssl.create_default_context()
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            if SMTP_USE_TLS:
+                server.starttls(context=context)
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(message)
+    except Exception:
+        pass
+
+
 def strip_private_fields(user: dict) -> dict:
-    return {
+    safe_user = {
         'fullName': user['fullName'],
         'email': user['email'],
         'role': user['role'],
         'employeeId': user['employeeId'],
         'createdAt': user['createdAt'].isoformat() if isinstance(user['createdAt'], datetime) else user['createdAt'],
     }
+
+    if user.get('managerId'):
+        safe_user['managerId'] = user['managerId']
+
+    if user.get('managerCode'):
+        safe_user['managerCode'] = user['managerCode']
+
+    return safe_user
 
 
 class RegisterInitRequest(BaseModel):
@@ -155,6 +197,7 @@ class RegisterInitRequest(BaseModel):
     confirmPassword: constr(min_length=8)
     role: constr(pattern='^(Manager|Employee)$')
     managerKey: Optional[str] = ''
+    managerCode: Optional[str] = ''
 
 
 class LoginRequest(BaseModel):
@@ -176,6 +219,11 @@ class ResetCompleteRequest(BaseModel):
     otp: constr(min_length=6, max_length=6)
     newPassword: constr(min_length=8)
     confirmPassword: constr(min_length=8)
+
+
+class ApprovalDecisionRequest(BaseModel):
+    approvalId: str
+    decision: constr(pattern='^(approved|rejected)$')
 
 
 @app.post('/api/auth/register-initiate')

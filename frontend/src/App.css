@@ -994,11 +994,11 @@ h1 {
 .dashboard-panel,
 .loading-panel,
 .empty-dashboard {
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(205, 218, 232, 0.16);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 26px 90px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(22px);
+  background: rgba(255, 255, 255, 0.065);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(16px);
 }
 
 .upload-panel {
@@ -1039,11 +1039,9 @@ h1 {
   align-content: space-between;
   gap: 12px;
   padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(205, 218, 232, 0.14);
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(127, 231, 207, 0.12), transparent 58%),
-    rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .metric-card span,
@@ -2270,32 +2268,26 @@ h1 {
 
 .home-hero {
   position: relative;
-  min-height: 320px;
+  min-height: 292px;
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
-  gap: 22px;
+  gap: 18px;
   overflow: hidden;
-  padding: clamp(22px, 4vw, 38px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid rgba(205, 218, 232, 0.14);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(47, 152, 255, 0.24), transparent 40%),
-    linear-gradient(315deg, rgba(127, 231, 207, 0.15), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
-    rgba(255, 255, 255, 0.07);
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.34);
+    linear-gradient(135deg, rgba(47, 152, 255, 0.12), transparent 46%),
+    rgba(255, 255, 255, 0.06);
+  box-shadow: 0 16px 54px rgba(0, 0, 0, 0.24);
+}
+
+.home-hero-simple {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .home-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.95), transparent 86%);
-  pointer-events: none;
+  display: none;
 }
 
 .home-hero-copy,
@@ -2314,8 +2306,8 @@ h1 {
 .home-hero-copy h2 {
   margin: 0;
   color: #ffffff;
-  font-size: clamp(2rem, 4vw, 3.85rem);
-  line-height: 1.02;
+  font-size: clamp(2rem, 3.4vw, 3.25rem);
+  line-height: 1.06;
 }
 
 .home-hero-copy h2 span {
@@ -2326,8 +2318,8 @@ h1 {
   max-width: 640px;
   margin: 0;
   color: #d8e4e7;
-  font-size: 1.02rem;
-  line-height: 1.65;
+  font-size: 1rem;
+  line-height: 1.55;
 }
 
 .home-actions {
@@ -2356,19 +2348,17 @@ h1 {
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 16px;
-  padding: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(205, 218, 232, 0.12);
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
-    rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.18);
   text-align: center;
 }
 
 .home-avatar-ring {
-  width: 116px;
-  height: 116px;
+  width: 96px;
+  height: 96px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -2376,22 +2366,22 @@ h1 {
 }
 
 .home-avatar {
-  width: 96px;
-  height: 96px;
+  width: 80px;
+  height: 80px;
   display: grid;
   place-items: center;
   border: 8px solid #07101d;
   border-radius: 50%;
   background: linear-gradient(145deg, #edf7ff, #9fb0ca);
   color: #07101d;
-  font-size: 2rem;
+  font-size: 1.7rem;
   font-weight: 950;
 }
 
 .home-profile-panel strong {
   display: block;
   color: #ffffff;
-  font-size: 1.3rem;
+  font-size: 1.12rem;
 }
 
 .home-profile-panel span {
@@ -2474,33 +2464,33 @@ h1 {
 .home-metric-blue,
 .home-command-blue {
   background:
-    linear-gradient(135deg, rgba(47, 152, 255, 0.22), transparent 58%),
+    linear-gradient(135deg, rgba(47, 152, 255, 0.14), transparent 62%),
     rgba(255, 255, 255, 0.07);
 }
 
 .home-metric-purple,
 .home-command-purple {
   background:
-    linear-gradient(135deg, rgba(150, 82, 255, 0.18), transparent 58%),
+    linear-gradient(135deg, rgba(150, 82, 255, 0.12), transparent 62%),
     rgba(255, 255, 255, 0.07);
 }
 
 .home-metric-green,
 .home-command-green {
   background:
-    linear-gradient(135deg, rgba(34, 197, 94, 0.17), transparent 58%),
+    linear-gradient(135deg, rgba(34, 197, 94, 0.12), transparent 62%),
     rgba(255, 255, 255, 0.07);
 }
 
 .home-metric-amber,
 .home-command-amber {
   background:
-    linear-gradient(135deg, rgba(255, 176, 32, 0.2), transparent 58%),
+    linear-gradient(135deg, rgba(255, 176, 32, 0.13), transparent 62%),
     rgba(255, 255, 255, 0.07);
 }
 
 .home-command-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .home-command-card {
@@ -2727,8 +2717,14 @@ h1 {
   .focused-dashboard,
   .leaderboard-highlight-grid,
   .home-hero,
-  .home-lower-grid {
+  .home-lower-grid,
+  .manager-workbench,
+  .manager-access-grid {
     grid-template-columns: 1fr;
+  }
+
+  .manager-roster-panel {
+    position: static;
   }
 
   .home-metric-grid,
@@ -2806,16 +2802,16 @@ h1 {
 @media (min-width: 981px) {
   .workspace-shell {
     min-height: 100svh;
-    padding: 24px 24px 42px;
+    padding: 22px 24px 40px;
   }
 
   .workspace-sidebar {
     position: fixed;
-    inset: 18px auto 18px 18px;
-    width: min(330px, 88vw);
+    inset: 18px auto 18px 16px;
+    width: min(304px, 88vw);
     height: auto;
     transform: translateX(-104%);
-    padding: 78px 16px 18px;
+    padding: 76px 14px 16px;
   }
 
   .workspace-content {
@@ -2827,12 +2823,13 @@ h1 {
 
   .workspace-header {
     width: min(1240px, 100%);
-    margin: 0 auto 18px;
-    padding-left: 86px;
+    margin: 0 auto 14px;
+    padding-left: 76px;
   }
 }
 
 .employee-dashboard-page,
+.manager-dashboard-page,
 .calls-page,
 .transcript-page,
 .ai-coach-page,
@@ -2844,6 +2841,7 @@ h1 {
 }
 
 .employee-dashboard-page,
+.manager-dashboard-page,
 .calls-page,
 .reports-page,
 .performance-page,
@@ -2854,17 +2852,30 @@ h1 {
 
 .employee-hero-panel {
   display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(205, 218, 232, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: 0 16px 54px rgba(0, 0, 0, 0.22);
+}
+
+.manager-hero-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 18px;
   padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(205, 218, 232, 0.14);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(47, 152, 255, 0.13), transparent 36%),
-    rgba(255, 255, 255, 0.055);
-  box-shadow: 0 24px 78px rgba(0, 0, 0, 0.28);
+    linear-gradient(135deg, rgba(47, 152, 255, 0.12), transparent 45%),
+    rgba(255, 255, 255, 0.06);
+  box-shadow: 0 16px 54px rgba(0, 0, 0, 0.24);
 }
 
 .employee-hero-panel h2,
+.manager-hero-panel h2,
 .page-hero-panel h2,
 .ai-coach-hero h2,
 .leaderboard-stage h2 {
@@ -2872,6 +2883,116 @@ h1 {
   color: #ffffff;
   font-size: 1.65rem;
   line-height: 1.15;
+}
+
+.manager-workbench {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.manager-roster-panel,
+.manager-detail-stack,
+.manager-employee-list,
+.manager-script-list,
+.manager-compact-list {
+  display: grid;
+  gap: 10px;
+}
+
+.manager-roster-panel {
+  position: sticky;
+  top: 18px;
+}
+
+.manager-employee-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.16);
+  color: #ffffff;
+  text-align: left;
+}
+
+.manager-employee-card:hover,
+.manager-employee-card.active {
+  border-color: rgba(47, 152, 255, 0.48);
+  background: rgba(47, 152, 255, 0.13);
+}
+
+.manager-employee-card .podium-avatar {
+  grid-row: 1 / 3;
+  width: 42px;
+  height: 42px;
+  font-size: 0.9rem;
+}
+
+.manager-employee-card strong,
+.manager-employee-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.manager-employee-card small {
+  color: #aebdd5;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.manager-employee-card b {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  min-width: 46px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: rgba(127, 231, 207, 0.14);
+  color: #ffffff;
+  text-align: center;
+}
+
+.employee-access-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.employee-access-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.employee-access-header h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.45rem;
+}
+
+.manager-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.manager-access-grid {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+}
+
+.manager-access-grid h3 {
+  margin: 0 0 12px;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.manager-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .dashboard-metric-grid,
@@ -2889,25 +3010,25 @@ h1 {
 
 .metric-card-blue {
   background:
-    linear-gradient(135deg, rgba(47, 152, 255, 0.24), transparent 58%),
+    linear-gradient(135deg, rgba(47, 152, 255, 0.14), transparent 62%),
     rgba(255, 255, 255, 0.08);
 }
 
 .metric-card-purple {
   background:
-    linear-gradient(135deg, rgba(150, 82, 255, 0.22), transparent 58%),
+    linear-gradient(135deg, rgba(150, 82, 255, 0.13), transparent 62%),
     rgba(255, 255, 255, 0.08);
 }
 
 .metric-card-green {
   background:
-    linear-gradient(135deg, rgba(34, 197, 94, 0.2), transparent 58%),
+    linear-gradient(135deg, rgba(34, 197, 94, 0.13), transparent 62%),
     rgba(255, 255, 255, 0.08);
 }
 
 .metric-card-amber {
   background:
-    linear-gradient(135deg, rgba(255, 176, 32, 0.22), transparent 58%),
+    linear-gradient(135deg, rgba(255, 176, 32, 0.14), transparent 62%),
     rgba(255, 255, 255, 0.08);
 }
 
@@ -2924,12 +3045,10 @@ h1 {
 .dashboard-subpanel {
   min-width: 0;
   padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(205, 218, 232, 0.12);
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(47, 152, 255, 0.08), transparent 42%),
-    rgba(255, 255, 255, 0.07);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+  background: rgba(255, 255, 255, 0.065);
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.2);
 }
 
 .trend-line-chart {
@@ -3270,6 +3389,7 @@ h1 {
 .calls-page .dashboard-panel,
 .transcript-page .dashboard-panel,
 .ai-coach-page .dashboard-panel,
+.manager-dashboard-page .dashboard-panel,
 .leaderboard-full-page .dashboard-panel {
   background:
     linear-gradient(135deg, rgba(47, 152, 255, 0.08), transparent 42%),
@@ -3342,8 +3462,14 @@ h1 {
   .dashboard-overview-grid,
   .dashboard-overview-grid.lower,
   .transcript-page,
-  .ai-coach-page {
+  .ai-coach-page,
+  .manager-workbench,
+  .manager-access-grid {
     grid-template-columns: 1fr;
+  }
+
+  .manager-roster-panel {
+    position: static;
   }
 
   .transcript-list-panel,
@@ -3362,6 +3488,7 @@ h1 {
   }
 
   .page-hero-panel,
+  .manager-hero-panel,
   .ai-coach-hero,
   .leaderboard-stage,
   .transcript-header-row {
@@ -3374,7 +3501,9 @@ h1 {
 
   .enhanced-call-table .call-row,
   .coach-chat-form,
-  .transcript-analysis-grid {
+  .transcript-analysis-grid,
+  .manager-insight-grid,
+  .manager-summary-grid {
     grid-template-columns: 1fr;
   }
 }
