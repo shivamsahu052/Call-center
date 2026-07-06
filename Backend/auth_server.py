@@ -172,6 +172,21 @@ def manager_by_code(manager_code: str):
     return users_collection.find_one({'role': 'Manager', 'managerCode': code}, {'passwordHash': 0})
 
 
+def primary_manager_user():
+    return users_collection.find_one(
+        {'role': 'Manager', 'email': normalize_email(PRIMARY_MANAGER_EMAIL)},
+        {'passwordHash': 0},
+    )
+
+
+def is_primary_manager(user: dict | None) -> bool:
+    return bool(
+        user
+        and user.get('role') == 'Manager'
+        and normalize_email(user.get('email', '')) == normalize_email(PRIMARY_MANAGER_EMAIL)
+    )
+
+
 def serialize_inbox_message(message: dict) -> dict:
     item = {
         'id': str(message.get('_id')),
@@ -236,24 +251,26 @@ def create_approval_request_messages(approval: dict) -> int:
         )
         return 1
 
-    managers = list(users_collection.find({'role': 'Manager'}, {'passwordHash': 0}))
+    manager = primary_manager_user()
 
-    for manager in managers:
-        create_inbox_message(
-            manager,
-            {
-                'type': 'approval_request',
-                'title': 'Manager approval request',
-                'body': f"{approval.get('fullName')} requested manager access.",
-                'approvalId': approval_id,
-                'approvalStatus': 'pending',
-                'requesterName': approval.get('fullName'),
-                'requesterEmail': approval.get('email'),
-                'requesterRole': approval.get('role'),
-            },
-        )
+    if not manager:
+        return 0
 
-    return len(managers)
+    create_inbox_message(
+        manager,
+        {
+            'type': 'approval_request',
+            'title': 'Manager approval request',
+            'body': f"{approval.get('fullName')} requested manager access.",
+            'approvalId': approval_id,
+            'approvalStatus': 'pending',
+            'requesterName': approval.get('fullName'),
+            'requesterEmail': approval.get('email'),
+            'requesterRole': approval.get('role'),
+        },
+    )
+
+    return 1
 
 
 def create_requester_status_message(approval: dict, decision: str, actor: dict | None = None) -> None:
@@ -563,11 +580,11 @@ def register_verify(payload: VerifyOtpRequest):
             send_manager_approval_email(approval)
 
         pending_collection.delete_one({'email': email})
-        target = (
-            f" to {pending.get('managerName')}'s inbox"
-            if pending.get('role') == 'Employee' and pending.get('managerName')
-            else ''
-        )
+        target = ''
+        if pending.get('role') == 'Employee' and pending.get('managerName'):
+            target = f" to {pending.get('managerName')}'s inbox"
+        elif pending.get('role') == 'Manager':
+            target = f' to the primary account ({PRIMARY_MANAGER_EMAIL})'
         return {
             'ok': True,
             'message': f'{pending.get("role")} registration submitted for approval{target}. You will be able to log in after approval.',
@@ -831,6 +848,9 @@ def approval_decision(payload: ApprovalDecisionRequest, request: Request):
 
     if approval.get('role') == 'Employee' and approval.get('managerId') != user.get('employeeId'):
         raise HTTPException(status_code=403, detail='This employee request belongs to another manager.')
+
+    if approval.get('role') == 'Manager' and not is_primary_manager(user):
+        raise HTTPException(status_code=403, detail='Only the primary manager account can approve manager requests.')
 
     return _process_approval(approval, payload.decision, user)
 
