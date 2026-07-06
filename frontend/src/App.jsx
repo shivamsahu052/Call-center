@@ -4,28 +4,30 @@ import Dashboard, { LeaderboardView } from './pages/Dashboard.jsx'
 import CallDetails from './pages/CallDetails.jsx'
 import CallTranscription from './pages/CallTranscription.jsx'
 import Home from './pages/Home.jsx'
+import Inbox from './pages/Inbox.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import './App.css'
 
 const navigationItems = [
-  { id: 'home', icon: '⌂', label: 'Home', view: 'home', focus: '' },
-  { id: 'dashboard', icon: '▦', label: 'Dashboard', view: 'dashboard', focus: '' },
-  { id: 'calls', icon: '☎', label: 'My Calls', view: 'dashboard', focus: 'calls' },
-  { id: 'transcripts', icon: '▤', label: 'Transcripts', view: 'dashboard', focus: 'transcripts' },
-  { id: 'coach', icon: '✦', label: 'AI Coach', view: 'dashboard', focus: 'coach' },
-  { id: 'performance', icon: '↗', label: 'Performance', view: 'dashboard', focus: 'performance' },
-  { id: 'training', icon: '◫', label: 'Training', view: 'dashboard', focus: 'training' },
-  { id: 'reports', icon: '◧', label: 'Reports', view: 'dashboard', focus: 'reports' },
-  { id: 'leaderboard', icon: '★', label: 'Leaderboard', view: 'leaderboard', focus: '' },
-  { id: 'upload', icon: '↑', label: 'Upload Call', view: 'upload', focus: '' },
-  { id: 'profile', icon: '●', label: 'Profile', view: 'profile', focus: '' },
+  { id: 'home', icon: 'HM', label: 'Home', view: 'home', focus: '' },
+  { id: 'dashboard', icon: 'DB', label: 'Dashboard', view: 'dashboard', focus: '' },
+  { id: 'inbox', icon: 'IN', label: 'Inbox', view: 'inbox', focus: '' },
+  { id: 'calls', icon: 'CL', label: 'My Calls', view: 'dashboard', focus: 'calls' },
+  { id: 'transcripts', icon: 'TR', label: 'Transcripts', view: 'dashboard', focus: 'transcripts' },
+  { id: 'coach', icon: 'AI', label: 'AI Coach', view: 'dashboard', focus: 'coach' },
+  { id: 'performance', icon: 'PF', label: 'Performance', view: 'dashboard', focus: 'performance' },
+  { id: 'training', icon: 'TN', label: 'Training', view: 'dashboard', focus: 'training' },
+  { id: 'reports', icon: 'RP', label: 'Reports', view: 'dashboard', focus: 'reports' },
+  { id: 'leaderboard', icon: 'LB', label: 'Leaderboard', view: 'leaderboard', focus: '' },
+  { id: 'upload', icon: 'UP', label: 'Upload Call', view: 'upload', focus: '' },
+  { id: 'profile', icon: 'PR', label: 'Profile', view: 'profile', focus: '' },
 ]
 
 const menuGroups = [
   {
     title: 'Workspace',
-    items: navigationItems.filter((item) => ['home', 'dashboard', 'leaderboard', 'upload'].includes(item.id)),
+    items: navigationItems.filter((item) => ['home', 'dashboard', 'inbox', 'leaderboard', 'upload'].includes(item.id)),
   },
   {
     title: 'Analysis',
@@ -143,6 +145,8 @@ function Workspace({ currentUser, onLogout }) {
   const pageTitle =
     activeView === 'home'
       ? 'Home'
+      : activeView === 'inbox'
+      ? 'Inbox'
       : activeView === 'leaderboard'
       ? 'Leaderboard'
       : activeView === 'upload'
@@ -272,6 +276,10 @@ function Workspace({ currentUser, onLogout }) {
           <LeaderboardView currentUser={currentUser} refreshKey={refreshKey} />
         ) : null}
 
+        {activeView === 'inbox' ? (
+          <Inbox currentUser={currentUser} />
+        ) : null}
+
         {activeView === 'upload' ? (
           currentUser.role === 'Manager' ? (
             <section className="empty-dashboard">
@@ -348,6 +356,8 @@ function ProfileView({ currentUser, onStartUpload }) {
           <ProfileItem label="Email" value={currentUser.email} />
           <ProfileItem label="Role" value={currentUser.role} />
           <ProfileItem label="Workspace" value="Call Center Evaluation" />
+          {currentUser.managerCode ? <ProfileItem label="Manager Code" value={currentUser.managerCode} /> : null}
+          {currentUser.managerName ? <ProfileItem label="Manager" value={currentUser.managerName} /> : null}
         </div>
         {currentUser.role === 'Manager' ? null : (
           <button className="primary-button compact-action" type="button" onClick={onStartUpload}>

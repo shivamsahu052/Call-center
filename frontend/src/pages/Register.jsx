@@ -7,20 +7,21 @@ const initialFormData = {
   password: '',
   confirmPassword: '',
   role: 'Employee',
-  managerKey: '',
+  managerCode: '',
 }
 
 function Register({ onShowLogin }) {
-  const { managerEnrollmentKey, registerInitiate, verifyRegistration } = useAuth()
+  const { registerInitiate, resendRegistrationOtp, verifyRegistration } = useAuth()
   const [formData, setFormData] = useState(initialFormData)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('error')
   const [otp, setOtp] = useState('')
   const [emailForOtp, setEmailForOtp] = useState('')
   const [showOtpModal, setShowOtpModal] = useState(false)
+  const [isResendingOtp, setIsResendingOtp] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [showManagerKey, setShowManagerKey] = useState(false)
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false)
 
   function updateField(event) {
     const { name, value } = event.target
@@ -42,6 +43,11 @@ function Register({ onShowLogin }) {
       return
     }
 
+    if (formData.role === 'Employee' && !formData.managerCode.trim()) {
+      setMessage('Enter your manager code to request employee access.')
+      return
+    }
+
     const result = await registerInitiate(formData)
 
     if (!result.ok) {
@@ -50,7 +56,26 @@ function Register({ onShowLogin }) {
     }
 
     setEmailForOtp(formData.email)
+    setOtp('')
     setShowOtpModal(true)
+    setMessageType('success')
+    setMessage(result.message)
+  }
+
+  async function handleResendOtp() {
+    setIsResendingOtp(true)
+    setMessage('')
+    setMessageType('error')
+
+    const result = await resendRegistrationOtp({ email: emailForOtp })
+
+    setIsResendingOtp(false)
+
+    if (!result.ok) {
+      setMessage(result.message)
+      return
+    }
+
     setMessageType('success')
     setMessage(result.message)
   }
@@ -70,6 +95,13 @@ function Register({ onShowLogin }) {
     setShowOtpModal(false)
     setMessageType('success')
     setMessage(result.message)
+
+    if (result.requiresApproval) {
+      setRedirectingToLogin(true)
+      window.setTimeout(() => {
+        onShowLogin()
+      }, 3000)
+    }
   }
 
   return (
@@ -186,45 +218,28 @@ function Register({ onShowLogin }) {
           </label>
         </fieldset>
 
-        {formData.role === 'Manager' ? (
+        {formData.role === 'Employee' ? (
           <div className="manager-key-block">
-            <label htmlFor="manager-key">Manager Enrollment Key</label>
-              <div className="password-field">
-                <input
-                  id="manager-key"
-                  name="managerKey"
-                  type={showManagerKey ? 'text' : 'password'}
-                  value={formData.managerKey}
-                  onChange={updateField}
-                  required
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowManagerKey((c) => !c)}
-                  aria-label={showManagerKey ? 'Hide manager key' : 'Show manager key'}
-                >
-                  {showManagerKey ? (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M10.58 10.58a3 3 0 0 0 4.24 4.24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" fill="none" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            <p className="field-help">
-              Demo key: <strong>{managerEnrollmentKey}</strong>
-            </p>
+            <label htmlFor="manager-code">Manager Code</label>
+            <input
+              id="manager-code"
+              name="managerCode"
+              type="text"
+              autoComplete="off"
+              value={formData.managerCode}
+              onChange={updateField}
+              placeholder="MGR-ABC123"
+              required
+            />
+            <p className="field-help">Use the code shared by your manager.</p>
           </div>
         ) : null}
 
         {message ? (
-          <p className={`form-message ${messageType}`}>{message}</p>
+          <p className={`form-message ${messageType}`}>
+            {message}
+            {redirectingToLogin ? ' Returning to login...' : null}
+          </p>
         ) : null}
 
         <button className="primary-button" type="submit">
@@ -259,6 +274,9 @@ function Register({ onShowLogin }) {
               <div className="otp-actions">
                 <button type="button" className="text-button" onClick={() => setShowOtpModal(false)}>
                   Cancel
+                </button>
+                <button type="button" className="text-button" onClick={handleResendOtp} disabled={isResendingOtp}>
+                  {isResendingOtp ? 'Sending...' : 'Resend OTP'}
                 </button>
                 <button className="primary-button" type="submit">
                   Verify OTP

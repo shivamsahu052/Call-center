@@ -30,10 +30,20 @@ def request_user(request: Request):
     return user
 
 
-def employee_team_ids():
+def employee_team_ids(manager_id=None):
+    query = {"role": "Employee"}
+
+    if manager_id:
+        query["$or"] = [
+            {"managerId": manager_id},
+            {"managerId": {"$exists": False}},
+            {"managerId": ""},
+            {"managerId": None},
+        ]
+
     return [
         user["employeeId"]
-        for user in users_collection.find({"role": "Employee"}, {"employeeId": 1})
+        for user in users_collection.find(query, {"employeeId": 1})
         if user.get("employeeId")
     ]
 
@@ -79,7 +89,7 @@ def list_calls(
     query = {}
 
     if user["role"] == "Manager":
-        team_ids = employee_team_ids()
+        team_ids = employee_team_ids(user["employeeId"])
         if employeeId:
             if employeeId not in team_ids:
                 raise HTTPException(status_code=403, detail="Managers can only access employee team calls.")
@@ -113,7 +123,7 @@ def get_call(call_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Call not found.")
 
     if user["role"] == "Manager":
-        if call.get("employeeId") not in employee_team_ids():
+        if call.get("employeeId") not in employee_team_ids(user["employeeId"]):
             raise HTTPException(status_code=403, detail="Managers can only access employee team calls.")
     elif call.get("employeeId") != user["employeeId"]:
         raise HTTPException(status_code=403, detail="Employees can only access their own calls.")
@@ -128,9 +138,9 @@ def manager_dashboard(request: Request):
     if user["role"] != "Manager":
         raise HTTPException(status_code=403, detail="Manager dashboard is restricted to managers.")
 
-    team_ids = employee_team_ids()
+    team_ids = employee_team_ids(user["employeeId"])
     calls = list(calls_collection.find({"employeeId": {"$in": team_ids}}).sort("createdAt", -1).limit(500))
-    users = list(users_collection.find({}, {"passwordHash": 0}))
+    users = list(users_collection.find({"$or": [{"employeeId": {"$in": team_ids}}, {"employeeId": user["employeeId"]}]}, {"passwordHash": 0}))
     return {
         "ok": True,
         "dashboard": build_manager_dashboard(calls, users),
@@ -140,8 +150,8 @@ def manager_dashboard(request: Request):
 
 @router.get("/leaderboard")
 def shared_leaderboard(request: Request):
-    request_user(request)
-    team_ids = employee_team_ids()
+    user = request_user(request)
+    team_ids = employee_team_ids(user["employeeId"]) if user["role"] == "Manager" else employee_team_ids()
     calls = list(calls_collection.find({"employeeId": {"$in": team_ids}}).sort("createdAt", -1).limit(500))
     users = list(users_collection.find({"role": "Employee"}, {"passwordHash": 0}))
     return {"ok": True, "leaderboard": build_leaderboard(calls, users)}
@@ -154,7 +164,7 @@ def employee_dashboard(employee_id: str, request: Request):
     if user["role"] == "Employee" and employee_id != user["employeeId"]:
         raise HTTPException(status_code=403, detail="Employees can only access their own dashboard.")
 
-    if user["role"] == "Manager" and employee_id not in employee_team_ids():
+    if user["role"] == "Manager" and employee_id not in employee_team_ids(user["employeeId"]):
         raise HTTPException(status_code=403, detail="Managers can only access employee team dashboards.")
 
     calls = list(calls_collection.find({"employeeId": employee_id}).sort("createdAt", -1).limit(200))
