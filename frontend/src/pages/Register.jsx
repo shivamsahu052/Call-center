@@ -106,7 +106,7 @@ function Register({ onShowLogin }) {
 
   return (
     <section className="auth-card auth-card--register" aria-labelledby="register-title">
-      <p className="eyebrow">AI Call Center Evaluation</p>
+      <p className="eyebrow">SageSmart-CallCentre</p>
       <h1 id="register-title">Create Account</h1>
 
       <form className="auth-form" onSubmit={handleSubmit}>

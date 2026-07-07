@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import Dashboard, { LeaderboardView } from './pages/Dashboard.jsx'
 import CallDetails from './pages/CallDetails.jsx'
@@ -39,6 +39,85 @@ const menuGroups = [
   },
 ]
 
+const authPaths = new Set(['/login', '/register'])
+const dashboardFocusPaths = {
+  calls: 'calls',
+  transcripts: 'transcripts',
+  coach: 'coach',
+  performance: 'performance',
+  training: 'training',
+  reports: 'reports',
+}
+
+function rolePathPrefix(role) {
+  return role === 'Manager' ? '/api/manager' : '/api/employee'
+}
+
+function replaceUrl(path) {
+  if (window.location.pathname !== path) {
+    window.history.replaceState({}, '', path)
+  }
+}
+
+function pushUrl(path) {
+  if (window.location.pathname !== path) {
+    window.history.pushState({}, '', path)
+  }
+}
+
+function pageFromPath() {
+  const segments = window.location.pathname.split('/').filter(Boolean)
+  const appSegments = segments[0] === 'api' && (segments[1] === 'employee' || segments[1] === 'manager')
+    ? segments.slice(2)
+    : segments
+  const [section, detailId] = appSegments
+
+  if (!section || section === 'home') {
+    return { view: 'home', focus: '', callId: '' }
+  }
+
+  if (section === 'dashboard') {
+    return { view: 'dashboard', focus: '', callId: '' }
+  }
+
+  if (section === 'inbox' || section === 'leaderboard' || section === 'upload' || section === 'profile') {
+    return { view: section, focus: '', callId: '' }
+  }
+
+  if (section === 'calls' && detailId) {
+    return { view: 'details', focus: '', callId: decodeURIComponent(detailId) }
+  }
+
+  if (dashboardFocusPaths[section]) {
+    return { view: 'dashboard', focus: dashboardFocusPaths[section], callId: '' }
+  }
+
+  return { view: 'home', focus: '', callId: '' }
+}
+
+function pathForPage(view, focus = '', callId = '', role = 'Employee') {
+  const prefix = rolePathPrefix(role)
+
+  if (view === 'dashboard' && focus) {
+    return `${prefix}/${focus}`
+  }
+
+  if (view === 'details' && callId) {
+    return `${prefix}/calls/${encodeURIComponent(callId)}`
+  }
+
+  const paths = {
+    home: `${prefix}/home`,
+    dashboard: `${prefix}/dashboard`,
+    inbox: `${prefix}/inbox`,
+    leaderboard: `${prefix}/leaderboard`,
+    upload: `${prefix}/upload`,
+    profile: `${prefix}/profile`,
+  }
+
+  return paths[view] || `${prefix}/home`
+}
+
 function visibleNavigationItems(role) {
   return navigationItems.filter((item) => {
     if (role === 'Manager') {
@@ -52,6 +131,17 @@ function visibleNavigationItems(role) {
 function AuthScreen() {
   const { currentUser, logout } = useAuth()
 
+  useEffect(() => {
+    if (currentUser && authPaths.has(window.location.pathname)) {
+      replaceUrl(pathForPage('home', '', '', currentUser.role))
+      return
+    }
+
+    if (!currentUser && !authPaths.has(window.location.pathname)) {
+      replaceUrl('/login')
+    }
+  }, [currentUser])
+
   if (currentUser) {
     return <Workspace currentUser={currentUser} onLogout={logout} />
   }
@@ -60,12 +150,41 @@ function AuthScreen() {
 }
 
 function Workspace({ currentUser, onLogout }) {
-  const [activeView, setActiveView] = useState('home')
-  const [selectedCallId, setSelectedCallId] = useState('')
+  const initialPage = pageFromPath()
+  const [activeView, setActiveView] = useState(initialPage.view)
+  const [selectedCallId, setSelectedCallId] = useState(initialPage.callId)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [dashboardFocus, setDashboardFocus] = useState('')
+  const [dashboardFocus, setDashboardFocus] = useState(initialPage.focus)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [previousPage, setPreviousPage] = useState(null)
+
+  useEffect(() => {
+    function applyPageFromUrl() {
+      const nextPage = pageFromPath()
+
+      if (currentUser.role === 'Manager' && nextPage.view === 'upload') {
+        replaceUrl(pathForPage('dashboard', '', '', currentUser.role))
+        setActiveView('dashboard')
+        setDashboardFocus('')
+        setSelectedCallId('')
+        setIsSidebarOpen(false)
+        return
+      }
+
+      setActiveView(nextPage.view)
+      setDashboardFocus(nextPage.focus)
+      setSelectedCallId(nextPage.callId)
+      setIsSidebarOpen(false)
+      replaceUrl(pathForPage(nextPage.view, nextPage.focus, nextPage.callId, currentUser.role))
+    }
+
+    applyPageFromUrl()
+    window.addEventListener('popstate', applyPageFromUrl)
+
+    return () => {
+      window.removeEventListener('popstate', applyPageFromUrl)
+    }
+  }, [currentUser.role])
 
   function currentPage() {
     return {
@@ -84,6 +203,7 @@ function Workspace({ currentUser, onLogout }) {
     setDashboardFocus(focus)
     setSelectedCallId(callId || '')
     setIsSidebarOpen(false)
+    pushUrl(pathForPage(view, focus, callId || '', currentUser.role))
   }
 
   function openCall(callId) {
@@ -130,6 +250,7 @@ function Workspace({ currentUser, onLogout }) {
     setSelectedCallId(previousPage.callId || '')
     setPreviousPage(null)
     setIsSidebarOpen(false)
+    pushUrl(pathForPage(previousPage.view, previousPage.focus || '', previousPage.callId || '', currentUser.role))
   }
 
   function openNavigation(item) {
@@ -198,7 +319,7 @@ function Workspace({ currentUser, onLogout }) {
         <div className="sidebar-brand">
           <div className="brand-mark" aria-hidden="true">AI</div>
           <div>
-            <p className="eyebrow">Call Center AI</p>
+            <p className="eyebrow">SageSmart-CallCentre</p>
             <strong>Welcome {firstName}</strong>
           </div>
         </div>
@@ -243,7 +364,7 @@ function Workspace({ currentUser, onLogout }) {
       <section className="workspace-content">
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">AI Call Center Evaluation</p>
+            <p className="eyebrow">SageSmart-CallCentre</p>
             <h1>{pageTitle}</h1>
           </div>
           <div className="user-panel" aria-label="Current user">
@@ -355,7 +476,7 @@ function ProfileView({ currentUser, onStartUpload }) {
           <ProfileItem label="Employee ID" value={currentUser.employeeId} />
           <ProfileItem label="Email" value={currentUser.email} />
           <ProfileItem label="Role" value={currentUser.role} />
-          <ProfileItem label="Workspace" value="Call Center Evaluation" />
+          <ProfileItem label="Workspace" value="SageSmart-CallCentre" />
           {currentUser.managerCode ? <ProfileItem label="Manager Code" value={currentUser.managerCode} /> : null}
           {currentUser.managerName ? <ProfileItem label="Manager" value={currentUser.managerName} /> : null}
         </div>
@@ -379,18 +500,38 @@ function ProfileItem({ label, value }) {
 }
 
 function AuthSwitcher() {
-  const initialMode =
-    new URLSearchParams(window.location.search).get('mode') === 'register'
-      ? 'register'
-      : 'login'
+  const initialMode = window.location.pathname === '/register' ? 'register' : 'login'
   const [mode, setMode] = useState(initialMode)
+
+  useEffect(() => {
+    function applyAuthPath() {
+      setMode(window.location.pathname === '/register' ? 'register' : 'login')
+    }
+
+    applyAuthPath()
+    window.addEventListener('popstate', applyAuthPath)
+
+    return () => {
+      window.removeEventListener('popstate', applyAuthPath)
+    }
+  }, [])
+
+  function showLogin() {
+    setMode('login')
+    pushUrl('/login')
+  }
+
+  function showRegister() {
+    setMode('register')
+    pushUrl('/register')
+  }
 
   return (
     <main className="auth-shell">
       {mode === 'login' ? (
-        <Login onShowRegister={() => setMode('register')} />
+        <Login onShowRegister={showRegister} />
       ) : (
-        <Register onShowLogin={() => setMode('login')} />
+        <Register onShowLogin={showLogin} />
       )}
     </main>
   )

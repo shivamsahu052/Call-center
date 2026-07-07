@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "backend": "python -m uvicorn Backend.main:app --host 127.0.0.1 --port 8000 --reload",
+    "backend": "python3 -m uvicorn Backend.main:app --host 127.0.0.1 --port 8000 --reload",
     "frontend": "npm --prefix frontend run dev"
   },
   "dependencies": {

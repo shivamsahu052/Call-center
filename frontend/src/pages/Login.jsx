@@ -88,10 +88,10 @@ function Login({ onShowRegister }) {
               <path d="M28 35h-5a4 4 0 0 1-4-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
           </span>
-          <span>Call Center AI</span>
+          <span>SageSmart-CallCentre</span>
         </div>
 
-        <p className="eyebrow">AI Call Center Evaluation</p>
+        <p className="eyebrow">SageSmart-CallCentre</p>
         <h1 id="login-title">Log in</h1>
         <p className="login-subtitle">
           Enter your credentials to continue reviewing calls, coaching insights, and service performance.
@@ -179,7 +179,7 @@ function Login({ onShowRegister }) {
 
         <div className="registration-callout">
           <div className="registration-copy">
-            <strong>New to Call Center AI?</strong>
+            <strong>New to SageSmart-CallCentre?</strong>
             <span>Create an employee or manager account to start evaluating calls.</span>
           </div>
           <button type="button" className="register-button" onClick={onShowRegister}>
@@ -203,7 +203,7 @@ function Login({ onShowRegister }) {
                 <path d="M28 35h-5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
               </svg>
             </span>
-            <strong>Call Center AI</strong>
+            <strong>SageSmart-CallCentre</strong>
             <small>Quality, coaching, and performance in one place</small>
           </div>
         </div>
