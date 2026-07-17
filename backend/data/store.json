@@ -1,0 +1,59 @@
+{
+  "contacts": [
+    {
+      "id": "c1",
+      "name": "Sarah Johnson",
+      "phoneNumber": "+1 (555) 234-5678",
+      "avatarInitials": "SJ",
+      "isFavorite": true
+    },
+    {
+      "id": "c2",
+      "name": "Michael Chen",
+      "phoneNumber": "+1 (555) 876-5432",
+      "avatarInitials": "MC",
+      "isFavorite": true
+    },
+    {
+      "id": "c3",
+      "name": "Emily Davis",
+      "phoneNumber": "+1 (555) 345-6789",
+      "avatarInitials": "ED",
+      "isFavorite": false
+    },
+    {
+      "id": "c4",
+      "name": "Support Desk",
+      "phoneNumber": "+1 (800) 555-0199",
+      "avatarInitials": "SD",
+      "isFavorite": true
+    },
+    {
+      "id": "c5",
+      "name": "James Wilson",
+      "phoneNumber": "+1 (555) 456-7890",
+      "avatarInitials": "JW",
+      "isFavorite": false
+    }
+  ],
+  "calls": [
+    {
+      "id": "out-1784220771247-bnya4a6",
+      "phoneNumber": "917898138070",
+      "type": "outgoing",
+      "status": "ended",
+      "duration": 7,
+      "startedAt": "2026-07-16T16:52:51.262Z",
+      "endedAt": "2026-07-16T16:52:58.353Z"
+    },
+    {
+      "id": "out-1784219743872-1atkqy8",
+      "phoneNumber": "917898138070",
+      "type": "outgoing",
+      "status": "ended",
+      "duration": 6,
+      "startedAt": "2026-07-16T16:35:43.885Z",
+      "endedAt": "2026-07-16T16:35:50.056Z"
+    }
+  ]
+}
