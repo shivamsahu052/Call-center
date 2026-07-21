@@ -11,11 +11,21 @@ interface DialPadProps {
   className?: string;
 }
 
-export function DialPad({ onDigitPress, onDigitLongPress, size = 'default', className }: DialPadProps) {
+export function DialPad({
+  onDigitPress,
+  onDigitLongPress,
+  size = 'default',
+  className,
+}: DialPadProps) {
+  const rowGap = size === 'compact' ? 8 : 12;
+
   return (
-    <View className={cn('w-full max-w-sm self-center', className)}>
+    <View
+      className={cn('w-full max-w-[340px] self-center', className)}
+      style={{ rowGap }}
+    >
       {DIAL_PAD_KEYS.map((row, rowIndex) => (
-        <View key={`row-${rowIndex}`} className="mb-4 flex-row justify-around">
+        <View key={`row-${rowIndex}`} className="flex-row justify-around">
           {row.map((key) => (
             <NumberButton
               key={key.digit}

@@ -1,7 +1,12 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
+import { DIALER_FONT_FAMILY } from '@/constants';
 import { cn } from '@/features/dialer/utils/formatters';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -63,9 +68,7 @@ export function DialButton({
 
   const iconSize = size === 'large' ? 32 : size === 'small' ? 20 : 24;
   const defaultIconColor =
-    variant === 'call' || variant === 'end' || active
-      ? '#FFFFFF'
-      : undefined;
+    variant === 'call' || variant === 'end' || active ? '#FFFFFF' : undefined;
 
   return (
     <AnimatedPressable
@@ -88,13 +91,20 @@ export function DialButton({
         {Icon ? (
           <Icon
             size={iconSize}
-            color={iconColor ?? defaultIconColor ?? (active ? '#FFFFFF' : '#5F6368')}
+            color={
+              iconColor ?? defaultIconColor ?? (active ? '#FFFFFF' : '#5F6368')
+            }
             strokeWidth={2}
           />
         ) : null}
       </View>
       {label ? (
-        <Text className="mt-2 text-xs font-medium text-dialer-muted dark:text-dialer-muted-dark">
+        <Text
+          className="mt-2 text-xs font-medium text-dialer-muted dark:text-dialer-muted-dark"
+          maxFontSizeMultiplier={1.1}
+          numberOfLines={1}
+          style={{ fontFamily: DIALER_FONT_FAMILY, lineHeight: 16 }}
+        >
           {label}
         </Text>
       ) : null}

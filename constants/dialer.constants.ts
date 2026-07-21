@@ -1,5 +1,7 @@
 import type { DialPadKey } from '@/types';
 
+export const DIALER_FONT_FAMILY = 'SpaceMono';
+
 export const DIAL_PAD_KEYS: DialPadKey[][] = [
   [
     { digit: '1' },
@@ -16,11 +18,7 @@ export const DIAL_PAD_KEYS: DialPadKey[][] = [
     { digit: '8', letters: 'TUV' },
     { digit: '9', letters: 'WXYZ' },
   ],
-  [
-    { digit: '*' },
-    { digit: '0', letters: '+' },
-    { digit: '#' },
-  ],
+  [{ digit: '*' }, { digit: '0', letters: '+' }, { digit: '#' }],
 ];
 
 export const MAX_PHONE_NUMBER_LENGTH = 15;

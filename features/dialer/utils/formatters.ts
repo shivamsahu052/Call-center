@@ -27,6 +27,30 @@ export function formatPhoneNumber(raw: string): string {
   return `+${digits.slice(0, digits.length - 10)} (${digits.slice(-10, -7)}) ${digits.slice(-7, -4)}-${digits.slice(-4)}`;
 }
 
+export function formatDialerNumber(raw: string): string {
+  if (!raw) {
+    return '';
+  }
+
+  if (/[*#]/.test(raw)) {
+    return raw;
+  }
+
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) {
+    return raw.startsWith('+') ? '+' : '';
+  }
+
+  const hasCountryCode = digits.length > 10;
+  const countryCodeLength = hasCountryCode ? digits.length - 10 : 0;
+  const countryCode = digits.slice(0, countryCodeLength);
+  const subscriberNumber = digits.slice(countryCodeLength);
+  const groups = subscriberNumber.match(/.{1,5}/g) ?? [];
+  const prefix = raw.startsWith('+') || hasCountryCode ? '+' : '';
+
+  return `${prefix}${countryCode}${countryCode ? ' ' : ''}${groups.join(' ')}`;
+}
+
 export function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -48,7 +72,10 @@ export function formatCallTime(isoDate: string): string {
   yesterday.setDate(yesterday.getDate() - 1);
   const isYesterday = date.toDateString() === yesterday.toDateString();
 
-  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const time = date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 
   if (isToday) {
     return time;
@@ -101,5 +128,7 @@ export function findContactByNumber(
   contacts: { id: string; name: string; phoneNumber: string }[],
 ): { id: string; name: string; phoneNumber: string } | undefined {
   const normalized = normalizePhoneNumber(phoneNumber);
-  return contacts.find((c) => normalizePhoneNumber(c.phoneNumber) === normalized);
+  return contacts.find(
+    (c) => normalizePhoneNumber(c.phoneNumber) === normalized,
+  );
 }

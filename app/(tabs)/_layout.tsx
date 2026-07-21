@@ -2,6 +2,7 @@ import { Phone, Clock } from 'lucide-react-native';
 import { Tabs } from 'expo-router';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { DIALER_FONT_FAMILY } from '@/constants';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -21,8 +22,11 @@ export default function TabLayout() {
           paddingTop: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontFamily: DIALER_FONT_FAMILY,
+          fontSize: 11,
           fontWeight: '500',
+          letterSpacing: 0,
+          lineHeight: 15,
         },
       }}
     >
@@ -30,14 +34,18 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Keypad',
-          tabBarIcon: ({ color, size }) => <Phone size={size} color={color} strokeWidth={2} />,
+          tabBarIcon: ({ color, size }) => (
+            <Phone size={size} color={color} strokeWidth={2} />
+          ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'Recents',
-          tabBarIcon: ({ color, size }) => <Clock size={size} color={color} strokeWidth={2} />,
+          tabBarIcon: ({ color, size }) => (
+            <Clock size={size} color={color} strokeWidth={2} />
+          ),
         }}
       />
     </Tabs>

@@ -1,5 +1,8 @@
 import { MAX_PHONE_NUMBER_LENGTH } from '@/constants';
-import { formatPhoneNumber, normalizePhoneNumber } from '@/features/dialer/utils/formatters';
+import {
+  formatDialerNumber,
+  normalizePhoneNumber,
+} from '@/features/dialer/utils/formatters';
 
 /**
  * Dialer input service — handles phone number formatting and validation.
@@ -24,7 +27,7 @@ class DialerService implements DialerServiceInterface {
   }
 
   formatDisplay(raw: string): string {
-    return formatPhoneNumber(raw);
+    return formatDialerNumber(raw);
   }
 
   isValidForCall(raw: string): boolean {
